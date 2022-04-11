@@ -5,9 +5,12 @@ import os
 import numpy as np
 from PIL import Image
 from torchvision.transforms import transforms
+import random
+import glob
+#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
 
 # return FloatTensor of boxes for each file in directory
-def read_boxes(directory):
+def read_boxes(directory, indexes):
     
     all_files = []
     
@@ -15,11 +18,17 @@ def read_boxes(directory):
         if f.is_file() and f.path.split('.')[-1].lower() == 'xml':
             all_files.append(f.path)
        
-    list_with_all_boxes = []
+    all_dicts = []
+    
     
     for xml_file in all_files:
         tree = ET.parse(xml_file)
         root = tree.getroot()
+        
+        
+
+        list_with_single_boxes = []
+        list_of_labels = []
 
         for boxes in root.iter('object'):
 
@@ -30,11 +39,18 @@ def read_boxes(directory):
             ymax = int(boxes.find("bndbox/ymax").text)
             xmax = int(boxes.find("bndbox/xmax").text)
 
-            list_with_single_boxes = [xmin, ymin, xmax, ymax]
-            list_with_all_boxes.append(list_with_single_boxes)
+            list_with_single_boxes.append([xmin, ymin, xmax, ymax])
+            #list_with_all_boxes.append(list_with_single_boxes)
+            list_of_labels.append(1)
         
-
-    return torch.FloatTensor(list_with_all_boxes)
+        out_dict = {'boxes':torch.FloatTensor(list_with_single_boxes), 'labels': torch.tensor(list_of_labels)}        
+        all_dicts.append(out_dict)
+    
+    batch_dicts = []
+    for i in indexes:
+        batch_dicts.append(all_dicts[i])
+    
+    return batch_dicts
 
 # common image transforms
 def image_transform(or_im):
@@ -44,35 +60,46 @@ def image_transform(or_im):
     
     return normalize(to_tensor(or_im))
 
-def read_labels(N):
-    
-    return torch.tensor(np.full((N,), 1))
-
-
-if __name__ == '__main__':
-    model = torchvision.models.detection.ssd300_vgg16(num_classes = 2, pretrained_backbone = True)
-    train_dir = '/home/ubuntu/ant_detection/FILE0001'
-    boxes = read_boxes(train_dir)
-    labels = read_labels(boxes.size(dim=0))
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.to(device)
-    
-    #target = list({boxes, labels})
-    target = {'boxes': boxes, 'labels': labels}
-    list_input = []
+def read_image(directory, indexes):
+    im_input = []
     for f in os.scandir(train_dir):
         if f.is_file() and f.path.split('.')[-1].lower() == 'jpg':
             original_image = Image.open(f.path, mode='r')
             original_image = original_image.convert('RGB')
             transf_image = image_transform(original_image)
-            list_input.append(transf_image)
+            im_input.append(transf_image)
+            
+    batch_im = []
+    for i in indexes:
+        batch_im.append(im_input[i])
+    
+    return batch_im
+
+if __name__ == '__main__':
+    num_epoch = 10
+    batch_size = 10
+    train_dir = '/home/ubuntu/ant_detection/FILE0001'
+    dir_size = int(len(glob.glob(train_dir + '/*')) / 2)
+    #indexes = random.sample(range(dir_size), batch_size)
+    
+    model = torchvision.models.detection.ssd300_vgg16(num_classes = 2, pretrained_backbone = True)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+    
+    #target = list({boxes, labels})
+    #target = read_boxes(train_dir, indexes)
+    #im_input = read_image(train_dir, indexes)
     
     model.train()
-    #list_input = list_input.to(device)
-    list_input = [i.to(device) for i in list_input] # (batch_size (N), 3, 300, 300)
-    boxes = [b.to(device) for b in boxes]
-    labels = [l.to(device) for l in labels]
-    #output = model(list_input).squeeze() # predict mode
-    results = model(list_input, target)
-    
+    #im_input = im_input.to(device)
+    #im_input = [i.to(device) for i in im_input] # (batch_size (N), 3, 300, 300)
+    #boxes = [b.to(device) for b in boxes]
+    #labels = [l.to(device) for l in labels]
+    #output = model(im_input).squeeze() # predict mode
+    for _ in range(num_epoch):
+        indexes = random.sample(range(dir_size), batch_size)
+        target = read_boxes(train_dir, indexes)
+        im_input = read_image(train_dir, indexes)
+        results = model(im_input, target)
+        print(results)
     
