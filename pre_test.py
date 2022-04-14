@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from torchvision.io import read_image 
 from torchvision.utils import draw_bounding_boxes
 from datetime import datetime
-#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
+#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
 
 # return FloatTensor of boxes for each file in directory
 def read_boxes(directory, indexes):
@@ -152,9 +152,9 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
     
-    test_model(load_path, '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_15.22.521.jpg')
+    #test_model(load_path, '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_15.22.521.jpg')
     
-    '''
+
     model.train()
     time_str = datetime.now().strftime("%Y%m%d-%H%M%S")
     dir = os.path.join('/home/ubuntu/ant_detection/models/', time_str)
@@ -179,7 +179,8 @@ if __name__ == '__main__':
             
         class_loss.append(results['classification'].item())
         epoch.append(i)
-        plt.cla()
+        axs[0].cla()
+        axs[1].cla()
         axs[0].plot(epoch, reg_loss, color = 'green', label = 'bbox_regression') 
         axs[1].plot(epoch, class_loss, color = 'red', label = 'classification')
         axs[0].legend(loc='best')
@@ -189,5 +190,4 @@ if __name__ == '__main__':
     save_model(model, saving_path + '/full_trained_model.pt')
     plt.savefig(saving_path + '/loss.png')
     plt.show()
-    '''
-    
+
