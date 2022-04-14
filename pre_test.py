@@ -85,7 +85,7 @@ def image_transform(or_im):
     
     return normalize(to_tensor(or_im))
 
-def read_image(directory, indexes):
+def read_input_image(directory, indexes):
     im_input = []
     for f in os.scandir(directory):
         if f.is_file() and f.path.split('.')[-1].lower() == 'jpg':
@@ -127,26 +127,22 @@ def test_model(model_path, image_path):
     indexes = []
     
     print(pred_boxes)
-    pred_boxes = torch.tensor(pred_boxes, dtype=torch.int)
+    #pred_boxes = torch.tensor(pred_boxes, dtype=torch.int)
+    pred_boxes = pred_boxes[0].long()
+    print(pred_boxes.size())
     pred_labels = results[:][0]['labels']
     
     img = read_image(image_path)
     
-    for i in pred_boxes:
-        img = draw_bounding_boxes(img, pred_boxes[i], width=3, colors=(255,0,0))
-    
-    for i in real_boxes:
-        img = raw_bounding_boxes(img, real_boxes[i], width=3, colors=(0,255,0))
+    #works only in range(0,255) add norm funk on boxes !!!!!!!!!!!
+    img = draw_bounding_boxes(img, pred_boxes, width=3, colors=(255,0,0))
+    img = draw_bounding_boxes(img, real_boxes, width=3, colors=(0,255,0))
         
     img = torchvision.transforms.ToPILImage()(img) 
     img.show()
     
 if __name__ == '__main__':
-    time_str = datetime.now().strftime("%Y%m%d-%H%M%S")
-    dir = os.path.join('/home/ubuntu/ant_detection/models/', time_str)
-    if not os.path.exists(dir):
-        os.mkdir(dir)
-    saving_path = '/home/ubuntu/ant_detection/models/' + time_str
+    load_path = '/home/ubuntu/ant_detection/models/20220414-151236/best_model.pt'
     num_epoch = 30
     batch_size = 10
     train_dir = '/home/ubuntu/ant_detection/FILE0001'
@@ -156,10 +152,15 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
     
-    #test_model(saving_path, '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_15.22.521.jpg')
+    test_model(load_path, '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_15.22.521.jpg')
     
+    '''
     model.train()
-
+    time_str = datetime.now().strftime("%Y%m%d-%H%M%S")
+    dir = os.path.join('/home/ubuntu/ant_detection/models/', time_str)
+    if not os.path.exists(dir):
+        os.mkdir(dir)
+    saving_path = '/home/ubuntu/ant_detection/models/' + time_str
     reg_loss = []
     class_loss = []
     epoch = []
@@ -168,7 +169,7 @@ if __name__ == '__main__':
     for i in range(num_epoch):
         indexes = random.sample(range(dir_size), batch_size)
         target = read_boxes(train_dir, indexes)
-        im_input = read_image(train_dir, indexes)
+        im_input = read_input_image(train_dir, indexes)
         results = model(im_input, target)
         reg_loss.append(results['bbox_regression'].item())
         
@@ -188,5 +189,5 @@ if __name__ == '__main__':
     save_model(model, saving_path + '/full_trained_model.pt')
     plt.savefig(saving_path + '/loss.png')
     plt.show()
-    
+    '''
     
