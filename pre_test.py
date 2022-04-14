@@ -7,6 +7,10 @@ from PIL import Image
 from torchvision.transforms import transforms
 import random
 import glob
+import matplotlib.pyplot as plt
+from torchvision.io import read_image 
+from torchvision.utils import draw_bounding_boxes
+from datetime import datetime
 #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
 
 # return FloatTensor of boxes for each file in directory
@@ -24,8 +28,6 @@ def read_boxes(directory, indexes):
     for xml_file in all_files:
         tree = ET.parse(xml_file)
         root = tree.getroot()
-        
-        
 
         list_with_single_boxes = []
         list_of_labels = []
@@ -52,6 +54,29 @@ def read_boxes(directory, indexes):
     
     return batch_dicts
 
+# read one image boxes
+def read_xml(path):
+    tree = ET.parse(path)
+    root = tree.getroot()
+        
+    list_with_single_boxes = []
+    list_of_labels = []
+
+    for boxes in root.iter('object'):
+
+        ymin, xmin, ymax, xmax = None, None, None, None
+
+        ymin = int(boxes.find("bndbox/ymin").text)
+        xmin = int(boxes.find("bndbox/xmin").text)
+        ymax = int(boxes.find("bndbox/ymax").text)
+        xmax = int(boxes.find("bndbox/xmax").text)
+
+        list_with_single_boxes.append([xmin, ymin, xmax, ymax])
+        list_of_labels.append(1)
+        
+    return list_with_single_boxes, list_of_labels
+    
+
 # common image transforms
 def image_transform(or_im):
     #resize = transforms.Resize((300, 300))
@@ -62,7 +87,7 @@ def image_transform(or_im):
 
 def read_image(directory, indexes):
     im_input = []
-    for f in os.scandir(train_dir):
+    for f in os.scandir(directory):
         if f.is_file() and f.path.split('.')[-1].lower() == 'jpg':
             original_image = Image.open(f.path, mode='r')
             original_image = original_image.convert('RGB')
@@ -75,31 +100,93 @@ def read_image(directory, indexes):
     
     return batch_im
 
+def save_model(model, path):
+    torch.save(model.state_dict(), path)
+    
+
+def load_model(path):
+    model = torchvision.models.detection.ssd300_vgg16(num_classes = 2, pretrained_backbone = True)
+    model.load_state_dict(torch.load(path))
+
+# draw real and predicted bboxes    
+def test_model(model_path, image_path):
+    load_model(model_path)
+    model.eval()
+    #xml_path = '.'.join(image_path.split('-')[:-1]) + '.xml'
+    xml_path = image_path[:-3] + 'xml'
+    print(xml_path)
+    real_boxes, real_labels = read_xml(xml_path)
+    real_boxes = torch.tensor(real_boxes, dtype=torch.int)
+    input_im = Image.open(image_path, mode='r')
+    input_im = input_im.convert('RGB')
+    input_im = image_transform(input_im)
+    results = model([input_im])
+    #print(results[:])
+    pred_boxes = [bx['boxes'] for bx in results[:]]
+    scores = [bx['scores'] for bx in results[:]]
+    indexes = []
+    
+    print(pred_boxes)
+    pred_boxes = torch.tensor(pred_boxes, dtype=torch.int)
+    pred_labels = results[:][0]['labels']
+    
+    img = read_image(image_path)
+    
+    for i in pred_boxes:
+        img = draw_bounding_boxes(img, pred_boxes[i], width=3, colors=(255,0,0))
+    
+    for i in real_boxes:
+        img = raw_bounding_boxes(img, real_boxes[i], width=3, colors=(0,255,0))
+        
+    img = torchvision.transforms.ToPILImage()(img) 
+    img.show()
+    
 if __name__ == '__main__':
-    num_epoch = 10
+    time_str = datetime.now().strftime("%Y%m%d-%H%M%S")
+    dir = os.path.join('/home/ubuntu/ant_detection/models/', time_str)
+    if not os.path.exists(dir):
+        os.mkdir(dir)
+    saving_path = '/home/ubuntu/ant_detection/models/' + time_str
+    num_epoch = 30
     batch_size = 10
     train_dir = '/home/ubuntu/ant_detection/FILE0001'
     dir_size = int(len(glob.glob(train_dir + '/*')) / 2)
-    #indexes = random.sample(range(dir_size), batch_size)
     
     model = torchvision.models.detection.ssd300_vgg16(num_classes = 2, pretrained_backbone = True)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
     
-    #target = list({boxes, labels})
-    #target = read_boxes(train_dir, indexes)
-    #im_input = read_image(train_dir, indexes)
+    #test_model(saving_path, '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_15.22.521.jpg')
     
     model.train()
-    #im_input = im_input.to(device)
-    #im_input = [i.to(device) for i in im_input] # (batch_size (N), 3, 300, 300)
-    #boxes = [b.to(device) for b in boxes]
-    #labels = [l.to(device) for l in labels]
-    #output = model(im_input).squeeze() # predict mode
-    for _ in range(num_epoch):
+
+    reg_loss = []
+    class_loss = []
+    epoch = []
+    fig, axs = plt.subplots(2)
+    min_reg_loss = float('inf')
+    for i in range(num_epoch):
         indexes = random.sample(range(dir_size), batch_size)
         target = read_boxes(train_dir, indexes)
         im_input = read_image(train_dir, indexes)
         results = model(im_input, target)
-        print(results)
+        reg_loss.append(results['bbox_regression'].item())
+        
+        if reg_loss[-1] < min_reg_loss:
+            min_reg_loss = reg_loss[-1]
+            save_model(model, saving_path + '/best_model.pt')
+            
+        class_loss.append(results['classification'].item())
+        epoch.append(i)
+        plt.cla()
+        axs[0].plot(epoch, reg_loss, color = 'green', label = 'bbox_regression') 
+        axs[1].plot(epoch, class_loss, color = 'red', label = 'classification')
+        axs[0].legend(loc='best')
+        axs[1].legend(loc='best')
+        plt.xlabel('no. epoch')
+        plt.pause(0.0001)
+    save_model(model, saving_path + '/full_trained_model.pt')
+    plt.savefig(saving_path + '/loss.png')
+    plt.show()
+    
     
