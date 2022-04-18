@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from torchvision.io import read_image 
 from torchvision.utils import draw_bounding_boxes
 from datetime import datetime
-#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
+
 
 # return FloatTensor of boxes for each file in directory
 def read_boxes(directory, indexes):

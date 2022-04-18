@@ -9,6 +9,7 @@ import glob
 from PIL import Image
 import matplotlib.pyplot as plt
 from datetime import datetime
+import argparse
 
 def read_boxes(directory, indexes):
     
@@ -77,7 +78,7 @@ def save_model(model, path):
     torch.save(model.state_dict(), path)
     
     
-def training(model, models_path):
+def training(model, models_path, train_dir):
     
     time_str = datetime.now().strftime("%Y%m%d-%H%M%S")
     dir = os.path.join(models_path, time_str)
@@ -117,11 +118,18 @@ def training(model, models_path):
     
 if __name__ == '__main__':
     
-    num_epoch = 30
-    batch_size = 10
-    train_dir = '/home/ubuntu/ant_detection/FILE0001'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('num_epoch', nargs='?', default=5, help="Enter number of epoch to train.", type=int)
+    parser.add_argument('batch_size', nargs='?', default=10, help="Enter the batch size", type=int)
+    parser.add_argument('train_dir', nargs='?', default='/home/ubuntu/ant_detection/FILE0001', help="Specify trainig directory.", type=str)
+    parser.add_argument('models_path', nargs='?', default='/home/ubuntu/ant_detection/models/', help="Specify directory where models will be saved.", type=str)
+    args = parser.parse_args()
+    
+    num_epoch = args.num_epoch
+    batch_size = args.batch_size
+    train_dir = args.train_dir
     dir_size = int(len(glob.glob(train_dir + '/*')) / 2)
-    models_path = '/home/ubuntu/ant_detection/models/'
+    models_path = args.models_path
     
     model = torchvision.models.detection.ssd300_vgg16(num_classes = 2, pretrained_backbone = True)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
