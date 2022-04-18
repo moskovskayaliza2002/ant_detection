@@ -114,25 +114,3 @@ def training(model, models_path, train_dir):
     save_model(model, saving_path + '/full_trained_model.pt')
     plt.savefig(saving_path + '/loss.png')
     plt.show()
-    
-    
-if __name__ == '__main__':
-    
-    parser = argparse.ArgumentParser()
-    parser.add_argument('num_epoch', nargs='?', default=5, help="Enter number of epoch to train.", type=int)
-    parser.add_argument('batch_size', nargs='?', default=10, help="Enter the batch size", type=int)
-    parser.add_argument('train_dir', nargs='?', default='/home/ubuntu/ant_detection/FILE0001', help="Specify trainig directory.", type=str)
-    parser.add_argument('models_path', nargs='?', default='/home/ubuntu/ant_detection/models/', help="Specify directory where models will be saved.", type=str)
-    args = parser.parse_args()
-    
-    num_epoch = args.num_epoch
-    batch_size = args.batch_size
-    train_dir = args.train_dir
-    dir_size = int(len(glob.glob(train_dir + '/*')) / 2)
-    models_path = args.models_path
-    
-    model = torchvision.models.detection.ssd300_vgg16(num_classes = 2, pretrained_backbone = True)
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.to(device)
-    model.train()
-    training(model, models_path, train_dir)
