@@ -10,7 +10,7 @@ from torchvision.utils import draw_bounding_boxes
 from datetime import datetime
 
 from train import image_transform
-
+import argparse
 
 def load_model(path):
     model = torchvision.models.detection.ssd300_vgg16(num_classes = 2, pretrained_backbone = True)
@@ -69,6 +69,12 @@ def test_model(model_path, image_path):
     img.show()
 
 if __name__ == '__main__':
-    load_path = '/home/ubuntu/ant_detection/models/20220418-123402/best_model.pt'
-    image_path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_15.22.521.jpg'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('load_path', nargs='?', default='/home/ubuntu/ant_detection/models/20220414-151236/best_model.pt', help="Specify full path to model to load.", type=str)
+    parser.add_argument('image_path', nargs='?', default='/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_15.22.521.jpg', help="Specify full path to image you going to test", type=str)
+    args = parser.parse_args()
+    
+    load_path = args.load_path
+    image_path = args.image_path
     test_model(load_path, image_path)
+
