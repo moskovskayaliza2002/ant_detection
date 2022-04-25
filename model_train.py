@@ -12,12 +12,13 @@ import os
 import torch
 from torch import nn
 import torchvision
+import numpy as np
 
-def read_boxes(directory, indexes):
+def read_boxes(directory, indexes, max_objs=10):
     
     all_files = []
-    list_with_single_boxes = []
-    list_of_labels = []
+    all_boxes = []#torch.tensor(())
+    all_labels = torch.tensor(())
     
     for f in os.scandir(directory):
         if f.is_file() and f.path.split('.')[-1].lower() == 'xml':
@@ -25,10 +26,10 @@ def read_boxes(directory, indexes):
     for xml_file in all_files:
         tree = ET.parse(xml_file)
         root = tree.getroot()
-
-        #list_with_single_boxes = []
-        #list_of_labels = []
-
+        one_im_l = []
+        one_im_b = torch.tensor(())
+        
+        some_boxes = []
         for boxes in root.iter('object'):
 
             ymin, xmin, ymax, xmax = None, None, None, None
@@ -37,15 +38,31 @@ def read_boxes(directory, indexes):
             xmin = int(boxes.find("bndbox/xmin").text)
             ymax = int(boxes.find("bndbox/ymax").text)
             xmax = int(boxes.find("bndbox/xmax").text)
-
-            list_with_single_boxes.append([xmin, ymin, xmax, ymax])
-            list_of_labels.append([1])
-    
+            
+            single_box = torch.tensor([xmin, ymin, xmax, ymax]).float()
+            some_boxes.append(single_box)
+            one_im_b = torch.cat((one_im_b, single_box), 0)
+            all_labels = torch.cat((all_labels, torch.tensor([1])), 0)
+            
+            if len(some_boxes) == max_objs:
+                print("WARN! bla bla")
+                break
+            # brake if cnt exeeds max_object
+        # add to tensor values for max_object
+        for i in range(len(some_boxes),max_objs):
+            some_boxes.append(torch.tensor([0,0,0,0]).float())
+        
+        
+        all_boxes.append(torch.stack(some_boxes))
+        
+    all_boxes = torch.stack(all_boxes)
+    print(all_boxes.size())
+            
     batch_list_l = []
     batch_list_b = []
     for i in indexes:
-        batch_list_b.append(list_with_single_boxes[i])
-        batch_list_l.append(list_of_labels[i])
+        batch_list_b.append(all_boxes[i,:,:])
+        batch_list_l.append(list_of_labels[i,:])
 
     return torch.FloatTensor(batch_list_b), torch.FloatTensor(batch_list_l)
 
@@ -79,13 +96,16 @@ def save_model(model, path):
     torch.save(model.state_dict(), path)
     
 
-def custom_loss(predC, predB, targetC, targetB, C = 1):
+def custom_loss(predC, predB, targetC, targetB, C = 10**9):
+    #print(f"predC {predC}")
+    #print(f"targetC {targetC}")
     classLoss = nn.BCELoss()(predC, targetC)
+    #print(classLoss)
     bboxLoss = torch.sum(nn.MSELoss(reduction='none')(predB, targetB),dim = 1)    
     bboxLoss = torch.matmul(bboxLoss , targetC)
-    totalLoss = classLoss + bboxLoss.mean() / C
+    totalLoss = C * classLoss + bboxLoss.mean()
 
-    return totalLoss
+    return totalLoss, C * classLoss, bboxLoss.mean()
 
 def train(num_epoch, batch_size, train_dir, models_path, lr=1e-4):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -95,12 +115,14 @@ def train(num_epoch, batch_size, train_dir, models_path, lr=1e-4):
     if not os.path.exists(dir):
         os.mkdir(dir)
     saving_path = models_path + time_str
-    model = ObjectDetector()
+    model = ObjectDetector(5)
     model = model.to(device)
     opt = Adam(model.parameters(), lr=lr)
     min_loss = float('inf')
     dir_size = int(len(glob.glob(train_dir + '/*')) / 2)
     totalTrainLoss = []
+    classTrainLoss = []
+    bboxTrainLoss = []
     plt.ion()
     plt.show(block = False)
     for epoch in range(num_epoch):
@@ -109,20 +131,26 @@ def train(num_epoch, batch_size, train_dir, models_path, lr=1e-4):
         bboxes, labels = read_boxes(train_dir, indexes)
         images = read_input_image(train_dir, indexes)
         (images, labels, bboxes) = (images.to(device), labels.to(device), bboxes.to(device))
+        print(images.size())
         predictions = model(images)
-        #print(f"predC {predictions[1].size()}, predB {predictions[0].size()}, targetC {labels.size()}, targetB {bboxes.size()}")
-        totalLoss = custom_loss(predictions[1].float(), predictions[0].float(), labels, bboxes)
+        print(f"predC {predictions[1].size()}, predB {predictions[0].size()}, targetC {labels.size()}, targetB {bboxes.size()}")
+        totalLoss, classLoss, bboxLoss = custom_loss(predictions[1].float(), predictions[0].float(), labels, bboxes)
+        classTrainLoss.append(round(classLoss.item(), 3))
+        print(f"classLoss {classLoss}")
+        print(f"bboxLoss {bboxLoss}")
+        bboxTrainLoss.append(bboxLoss.item())
         if totalLoss < min_loss:
             min_loss = totalLoss
             save_model(model, saving_path + '/best_model.pt')
         
-        totalTrainLoss.append(totalLoss.detach().numpy())
+        totalTrainLoss.append(totalLoss.item())
         epochs.append(epoch)
         plt.cla()
-        plt.title("loss")
-        plt.xlabel("Epoch")
-        plt.ylabel("Total loss")
-        plt.plot(epochs, totalTrainLoss)
+        plt.xlabel("epoch")
+        plt.plot(epochs, classTrainLoss, label="Classification", linestyle = '--', color = 'green')
+        plt.plot(epochs, bboxTrainLoss, label="Regression", linestyle = '-.', color = 'red')
+        plt.plot(epochs, totalTrainLoss, label="Total", linestyle = ':', color = 'darkblue')
+        plt.legend(loc="best")
         plt.gcf().canvas.draw_idle()
         plt.gcf().canvas.start_event_loop(0.3)
         
@@ -148,4 +176,4 @@ if __name__ == '__main__':
     train_dir = args.train_dir
     models_path = args.models_path
     lr = args.learning_rate
-    train(num_epoch, batch_size, train_dir, models_path, learning_rate)
+    train(num_epoch, batch_size, train_dir, models_path, lr)
