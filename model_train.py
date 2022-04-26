@@ -14,11 +14,11 @@ from torch import nn
 import torchvision
 import numpy as np
 
-def read_boxes(directory, indexes, max_objs=10):
+def read_boxes(directory, indexes, max_objs):
     
     all_files = []
-    all_boxes = []#torch.tensor(())
-    all_labels = torch.tensor(())
+    all_boxes = []
+    all_labels = []
     
     for f in os.scandir(directory):
         if f.is_file() and f.path.split('.')[-1].lower() == 'xml':
@@ -29,7 +29,8 @@ def read_boxes(directory, indexes, max_objs=10):
         one_im_l = []
         one_im_b = torch.tensor(())
         
-        some_boxes = []
+        one_im_labels = []
+        one_im_boxes = []
         for boxes in root.iter('object'):
 
             ymin, xmin, ymax, xmax = None, None, None, None
@@ -39,32 +40,40 @@ def read_boxes(directory, indexes, max_objs=10):
             ymax = int(boxes.find("bndbox/ymax").text)
             xmax = int(boxes.find("bndbox/xmax").text)
             
+            single_label = torch.tensor([1]).float()
             single_box = torch.tensor([xmin, ymin, xmax, ymax]).float()
-            some_boxes.append(single_box)
-            one_im_b = torch.cat((one_im_b, single_box), 0)
-            all_labels = torch.cat((all_labels, torch.tensor([1])), 0)
-            
-            if len(some_boxes) == max_objs:
-                print("WARN! bla bla")
+            one_im_boxes.append(single_box)
+            one_im_labels.append(single_label)
+
+            if len(one_im_boxes) == max_objs:
+                print("WARN! the number of real objects exceeds the maximum limit")
                 break
-            # brake if cnt exeeds max_object
+            # break if cnt exeeds max_object
         # add to tensor values for max_object
-        for i in range(len(some_boxes),max_objs):
-            some_boxes.append(torch.tensor([0,0,0,0]).float())
+        if len(one_im_boxes) < max_objs:
+            for i in range(len(one_im_boxes),max_objs):
+                one_im_boxes.append(torch.tensor([0,0,0,0]).float())
+                one_im_labels.append(torch.tensor([0]).float())
+                
         
-        
-        all_boxes.append(torch.stack(some_boxes))
+        all_boxes.append(torch.stack(one_im_boxes))
+        all_labels.append(torch.stack(one_im_labels))
         
     all_boxes = torch.stack(all_boxes)
-    print(all_boxes.size())
-            
+    all_labels = torch.stack(all_labels)
+    all_labels = all_labels.view(-1, max_objs)
+    
     batch_list_l = []
     batch_list_b = []
     for i in indexes:
         batch_list_b.append(all_boxes[i,:,:])
-        batch_list_l.append(list_of_labels[i,:])
-
-    return torch.FloatTensor(batch_list_b), torch.FloatTensor(batch_list_l)
+        batch_list_l.append(all_labels[i,:])
+        
+    batch_list_b = torch.stack(batch_list_b)
+    batch_list_l = torch.stack(batch_list_l)
+    batch_list_l = batch_list_l.view(-1, max_objs)
+    
+    return batch_list_b, batch_list_l
 
 
 def image_transform(or_im):
@@ -97,17 +106,17 @@ def save_model(model, path):
     
 
 def custom_loss(predC, predB, targetC, targetB, C = 10**9):
-    #print(f"predC {predC}")
-    #print(f"targetC {targetC}")
     classLoss = nn.BCELoss()(predC, targetC)
-    #print(classLoss)
-    bboxLoss = torch.sum(nn.MSELoss(reduction='none')(predB, targetB),dim = 1)    
-    bboxLoss = torch.matmul(bboxLoss , targetC)
+    bboxLoss = torch.sum(nn.MSELoss(reduction='none')(predB, targetB),dim = 2)  
+    print(f'bboxLoss size {bboxLoss.size()}')
+    print(f'targetC size {targetC.size()}')
+    bboxLoss = torch.matmul(bboxLoss , targetC.T)
     totalLoss = C * classLoss + bboxLoss.mean()
 
     return totalLoss, C * classLoss, bboxLoss.mean()
 
-def train(num_epoch, batch_size, train_dir, models_path, lr=1e-4):
+
+def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     time_str = datetime.now().strftime("%Y%m%d-%H%M%S")
     epochs = []
@@ -115,7 +124,7 @@ def train(num_epoch, batch_size, train_dir, models_path, lr=1e-4):
     if not os.path.exists(dir):
         os.mkdir(dir)
     saving_path = models_path + time_str
-    model = ObjectDetector(5)
+    model = ObjectDetector(max_objects)
     model = model.to(device)
     opt = Adam(model.parameters(), lr=lr)
     min_loss = float('inf')
@@ -128,7 +137,7 @@ def train(num_epoch, batch_size, train_dir, models_path, lr=1e-4):
     for epoch in range(num_epoch):
         model.train()
         indexes = random.sample(range(dir_size), batch_size)
-        bboxes, labels = read_boxes(train_dir, indexes)
+        bboxes, labels = read_boxes(train_dir, indexes, max_objects)
         images = read_input_image(train_dir, indexes)
         (images, labels, bboxes) = (images.to(device), labels.to(device), bboxes.to(device))
         print(images.size())
@@ -169,11 +178,14 @@ if __name__ == '__main__':
     parser.add_argument('batch_size', nargs='?', default=15, help="Enter the batch size", type=int)
     parser.add_argument('train_dir', nargs='?', default='/home/ubuntu/ant_detection/FILE0001', help="Specify training directory.", type=str)
     parser.add_argument('models_path', nargs='?', default='/home/ubuntu/ant_detection/models/', help="Specify directory where models will be saved.", type=str)
-    parser.add_argument('learning_rate', nargs='?', default=1e-4, help="Enter learning rate for optimizer", type=int)
+    parser.add_argument('learning_rate', nargs='?', default=1e-4, help="Enter learning rate for optimizer", type=float)
+    parser.add_argument('max_objects', nargs='?', default=10, help="Enter maximum number of objects detected per image", type=int)
+
     args = parser.parse_args()
     num_epoch = args.num_epoch
     batch_size = args.batch_size
     train_dir = args.train_dir
     models_path = args.models_path
     lr = args.learning_rate
-    train(num_epoch, batch_size, train_dir, models_path, lr)
+    max_objects = args.max_objects
+    train(num_epoch, batch_size, train_dir, models_path, lr, max_objects)
