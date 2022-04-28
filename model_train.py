@@ -13,12 +13,23 @@ import torch
 from torch import nn
 import torchvision
 import numpy as np
+import cv2
 
+
+def read_im_size(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
+    im = cv2.imread(path)
+    height = im.shape[0]
+    width = im.shape[1]
+    return height, width
+    
+    
 def read_boxes(directory, indexes, max_objs):
     
     all_files = []
     all_boxes = []
     all_labels = []
+    
+    height, width = read_im_size()
     
     for f in os.scandir(directory):
         if f.is_file() and f.path.split('.')[-1].lower() == 'xml':
@@ -35,13 +46,16 @@ def read_boxes(directory, indexes, max_objs):
 
             ymin, xmin, ymax, xmax = None, None, None, None
 
-            ymin = int(boxes.find("bndbox/ymin").text)
-            xmin = int(boxes.find("bndbox/xmin").text)
-            ymax = int(boxes.find("bndbox/ymax").text)
-            xmax = int(boxes.find("bndbox/xmax").text)
+            ymin = int(boxes.find("bndbox/ymin").text) * 224 / height
+            xmin = int(boxes.find("bndbox/xmin").text) * 224 / width
+            ymax = int(boxes.find("bndbox/ymax").text) * 224 / height
+            xmax = int(boxes.find("bndbox/xmax").text) * 224 / width
+            
+            h = ymax - ymin
+            w = xmax - xmin
             
             single_label = torch.tensor([1]).float()
-            single_box = torch.tensor([xmin, ymin, xmax, ymax]).float()
+            single_box = torch.tensor([xmin, ymin, w, h]).float()
             one_im_boxes.append(single_box)
             one_im_labels.append(single_label)
 
@@ -73,7 +87,14 @@ def read_boxes(directory, indexes, max_objs):
     batch_list_l = torch.stack(batch_list_l)
     batch_list_l = batch_list_l.view(-1, max_objs)
     
+    batch_list_b = rescale(batch_list_b)
+    
     return batch_list_b, batch_list_l
+
+
+def rescale(bbox):
+    bbox = bbox / 224
+    return bbox
 
 
 def image_transform(or_im):
@@ -105,15 +126,15 @@ def save_model(model, path):
     torch.save(model.state_dict(), path)
     
 
-def custom_loss(predC, predB, targetC, targetB, C = 10**9):
+def custom_loss(predC, predB, targetC, targetB, C = 5):
     classLoss = nn.BCELoss()(predC, targetC)
     bboxLoss = torch.sum(nn.MSELoss(reduction='none')(predB, targetB),dim = 2)  
-    print(f'bboxLoss size {bboxLoss.size()}')
-    print(f'targetC size {targetC.size()}')
+    #print(f'bboxLoss size {bboxLoss.size()}')
+    #print(f'targetC size {targetC.size()}')
     bboxLoss = torch.matmul(bboxLoss , targetC.T)
-    totalLoss = C * classLoss + bboxLoss.mean()
+    totalLoss = classLoss + bboxLoss.mean() / C
 
-    return totalLoss, C * classLoss, bboxLoss.mean()
+    return totalLoss, classLoss, bboxLoss.mean() / C
 
 
 def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
@@ -140,9 +161,10 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
         bboxes, labels = read_boxes(train_dir, indexes, max_objects)
         images = read_input_image(train_dir, indexes)
         (images, labels, bboxes) = (images.to(device), labels.to(device), bboxes.to(device))
-        print(images.size())
+        #print(images.size())
         predictions = model(images)
-        print(f"predC {predictions[1].size()}, predB {predictions[0].size()}, targetC {labels.size()}, targetB {bboxes.size()}")
+        #print(predictions[0])
+        #print(f"predC {predictions[1].size()}, predB {predictions[0].size()}, targetC {labels.size()}, targetB {bboxes.size()}")
         totalLoss, classLoss, bboxLoss = custom_loss(predictions[1].float(), predictions[0].float(), labels, bboxes)
         classTrainLoss.append(round(classLoss.item(), 3))
         print(f"classLoss {classLoss}")
@@ -174,8 +196,8 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('num_epoch', nargs='?', default=10, help="Enter number of epoch to train.", type=int)
-    parser.add_argument('batch_size', nargs='?', default=15, help="Enter the batch size", type=int)
+    parser.add_argument('num_epoch', nargs='?', default=150, help="Enter number of epoch to train.", type=int)
+    parser.add_argument('batch_size', nargs='?', default=20, help="Enter the batch size", type=int)
     parser.add_argument('train_dir', nargs='?', default='/home/ubuntu/ant_detection/FILE0001', help="Specify training directory.", type=str)
     parser.add_argument('models_path', nargs='?', default='/home/ubuntu/ant_detection/models/', help="Specify directory where models will be saved.", type=str)
     parser.add_argument('learning_rate', nargs='?', default=1e-4, help="Enter learning rate for optimizer", type=float)
@@ -188,4 +210,5 @@ if __name__ == '__main__':
     models_path = args.models_path
     lr = args.learning_rate
     max_objects = args.max_objects
+    
     train(num_epoch, batch_size, train_dir, models_path, lr, max_objects)

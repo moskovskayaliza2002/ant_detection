@@ -15,7 +15,7 @@ class ObjectDetector(nn.Module):
                                        nn.Linear(64, 32),
                                        nn.ReLU(),
                                        nn.Linear(32, 4 * max_detections),
-                                       nn.ReLU())
+                                       nn.Sigmoid())
                                        
         self.classifier = nn.Sequential(nn.BatchNorm1d(1000),
                                      nn.Linear(1000, 512),
@@ -44,3 +44,4 @@ if __name__ == '__main__':
     pred_boxes = output[0]
     pred_labels = output[1]
     print(pred_labels.size(), pred_boxes.size())
+    print(pred_boxes)

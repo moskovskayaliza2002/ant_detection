@@ -12,11 +12,20 @@ from model import ObjectDetector
 
 from model_train import image_transform
 import argparse
+import cv2
 
 
-def load_model(path):
+
+def read_im_size(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
+    im = cv2.imread(path)
+    height = im.shape[0]
+    width = im.shape[1]
+    return height, width
+
+
+def load_model(path, max_objects):
     model = torchvision.models.detection.ssd300_vgg16(num_classes = 2, pretrained_backbone = True)
-    model = ObjectDetector()
+    model = ObjectDetector(max_objects)
     model.load_state_dict(torch.load(path))
     return model
 
@@ -36,6 +45,9 @@ def read_xml(path):
         xmin = int(boxes.find("bndbox/xmin").text)
         ymax = int(boxes.find("bndbox/ymax").text)
         xmax = int(boxes.find("bndbox/xmax").text)
+        
+        h = ymax - ymin
+        w = xmax - xmin
 
         list_with_single_boxes.append([xmin, ymin, xmax, ymax])
         list_of_labels.append(1)
@@ -44,8 +56,8 @@ def read_xml(path):
 
 
 # draw real and predicted bboxes    
-def test_model(model_path, image_path):
-    model = load_model(model_path)
+def test_model(model_path, image_path, max_objects):
+    model = load_model(model_path, max_objects)
     model.eval()
     xml_path = image_path[:-3] + 'xml'
     print(xml_path)
@@ -56,9 +68,20 @@ def test_model(model_path, image_path):
     input_im = input_im.convert('RGB')
     input_im = image_transform(input_im)
     input_im = torch.unsqueeze(input_im, 0)
-    results = model(input_im)
+    with torch.no_grad():
+        results = model(input_im)
     
-    pred_boxes = results[0]
+    #pred_boxes = results[0]
+    pred_boxes = torch.squeeze(results[0])
+    print(pred_boxes)
+    height, width = read_im_size()
+    a = pred_boxes[:,0] * height
+    b = pred_boxes[:,1] * width
+    c = pred_boxes[:,2] * height
+    d = pred_boxes[:,3] * width
+    x2 = c - a 
+    y2 = d - b
+    pred_boxes = torch.stack([a, b, x2, y2], 1)
     pred_labels = results[1]
     indexes = []
     print(pred_boxes.size())
@@ -69,7 +92,7 @@ def test_model(model_path, image_path):
     
     img = read_image(image_path)
     
-    img = draw_bounding_boxes(img, pred_boxes, width=20, colors=(255,0,0))
+    img = draw_bounding_boxes(img, pred_boxes, width=3, colors=(255,0,0))
     img = draw_bounding_boxes(img, real_boxes, width=3, colors=(0,255,0))
         
     img = torchvision.transforms.ToPILImage()(img) 
@@ -79,10 +102,12 @@ def test_model(model_path, image_path):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('load_path', nargs='?', default='/home/ubuntu/ant_detection/models/20220425-132903/best_model.pt', help="Specify full path to model to load.", type=str)
+    parser.add_argument('load_path', nargs='?', default='/home/ubuntu/ant_detection/models/20220428-145111/best_model.pt', help="Specify full path to model to load.", type=str)
     parser.add_argument('image_path', nargs='?', default='/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_15.22.521.jpg', help="Specify full path to image you going to test", type=str)
+    parser.add_argument('max_objects', nargs='?', default=10, help="Enter maximum number of objects detected per image", type=int)
     args = parser.parse_args()
     
     load_path = args.load_path
     image_path = args.image_path
-    test_model(load_path, image_path) 
+    max_objects = args.max_objects
+    test_model(load_path, image_path, max_objects) 
