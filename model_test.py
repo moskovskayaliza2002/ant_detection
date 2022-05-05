@@ -17,7 +17,7 @@ import cv2
 
 
 
-def read_im_size(path = '/home/anton/Projects/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
+def read_im_size(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
     im = cv2.imread(path)
     height = im.shape[0]
     width = im.shape[1]

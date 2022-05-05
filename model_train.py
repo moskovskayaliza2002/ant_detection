@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import glob
 from torch.optim import Adam
+from torchvision.io import read_image 
 import random
 from torchvision.transforms import transforms
 import xml.etree.ElementTree as ET
@@ -15,9 +16,45 @@ import torchvision
 import numpy as np
 import cv2
 from giou_loss import giou_loss
+from torchvision.utils import draw_bounding_boxes, draw_keypoints
+from PIL import Image
+from PIL import ImageDraw, ImageFont
 
 
-def read_im_size(path = '/home/anton/Projects/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
+def read_xml(path):
+    tree = ET.parse(path)
+    root = tree.getroot()
+        
+    list_with_single_boxes = []
+    all_boxes = torch.tensor(1)
+    list_of_labels = []
+    height, width = read_im_size()
+
+    for boxes in root.iter('object'):
+
+        ymin, xmin, ymax, xmax = None, None, None, None
+
+        ymin = int(boxes.find("bndbox/ymin").text) / height
+        xmin = int(boxes.find("bndbox/xmin").text) / width
+        ymax = int(boxes.find("bndbox/ymax").text) / height
+        xmax = int(boxes.find("bndbox/xmax").text) / width
+        
+        h = ymax - ymin
+        w = xmax - xmin
+
+        #list_with_single_boxes.append([xmin, ymin, xmax, ymax])
+        single_box = torch.tensor([(xmin + xmax)/2, (ymin+ymax)/2]).float() #/ 224
+        list_with_single_boxes.append(single_box)
+        #list_with_single_boxes.append([[(xmin + xmax)/2, (ymin + ymax)/2]])
+        list_of_labels.append(1)
+        
+    all_boxes = torch.stack(list_with_single_boxes)
+    print(f"all bboxes {all_boxes}")
+        
+    return all_boxes, list_of_labels
+
+
+def read_im_size(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
     im = cv2.imread(path)
     height = im.shape[0]
     width = im.shape[1]
@@ -153,7 +190,7 @@ def custom_loss(predC, predB, targetC, targetB, C = 1):
 # targetC - list (x batch) of tensors [n_real_objects]
 # targetB - list (x batch) of tensors [n_real_objects, 2]
 # mse_thresh - threshold to count objects as positive
-def best_point_loss(predC, predB, targetC, targetB, mse_thresh = 0.2, C = 1):
+def best_point_loss(predC, predB, targetC, targetB, mse_thresh = 0.01, C = 1000):
     MSE = nn.MSELoss(reduction='sum')
     BCE = nn.BCELoss(reduction='mean')
     mse_loss = 0
@@ -169,20 +206,50 @@ def best_point_loss(predC, predB, targetC, targetB, mse_thresh = 0.2, C = 1):
             for j in range(targ.size()[0]):
                 mse[i,j] = MSE(pred[i], targ[j])
         #print(mse)
-        maxes, max_inds = torch.max(mse, dim = 1)
+        maxes, max_inds = torch.min(mse, dim = 1)
         zeros = torch.zeros(pred.size()[0])
         mse_losses = torch.where(maxes < mse_thresh, maxes, zeros)
+        #print(mse_losses)
         mse_loss += torch.mean(mse_losses)
         
         bce_targets = (maxes < mse_thresh).float()
         bce_loss += BCE(predC[b,:], bce_targets)
     
-    mse_loss = mse_loss / C
+    #mse_loss = mse_loss / C
+    bce_loss = bce_loss / C
     total_loss = mse_loss + bce_loss
     return total_loss, bce_loss, mse_loss
     
+    
+def open_im(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
+    input_im = Image.open(path, mode='r')
+    input_im = input_im.convert('RGB')
+    input_im = image_transform(input_im)
+    input_im = torch.unsqueeze(input_im, 0)
+    return input_im
+    
+    
+def mse_of_test_image(predC, predB, targetC, targetB, mse_thresh = 0.0005, C = 1):
+    pred = torch.squeeze(predB)
+    targ = torch.squeeze(targetB)
+    
+    MSE = nn.MSELoss(reduction='sum')
+    mse = torch.zeros(pred.size()[0], targ.size()[0])
+    for i in range(pred.size()[0]):
+        for j in range(targ.size()[0]):
+            mse[i,j] = MSE(pred[i], targ[j])
+    #print('mse',mse)
+    minies, min_inds = torch.min(mse, dim = 1)
+    zeros = torch.zeros(pred.size()[0])
+    mse_losses = torch.where(minies < mse_thresh, minies, zeros)
+    #print(f"minies {minies}")
+    return minies
+    
+    
 
 def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
+    image_path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_32.13.990.jpg'
+    input_im = open_im()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     time_str = datetime.now().strftime("%Y%m%d-%H%M%S")
     epochs = []
@@ -201,6 +268,35 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
     plt.ion()
     plt.show(block = False)
     for epoch in range(num_epoch):
+        model.eval()
+        with torch.no_grad():
+            output_1 = model(input_im)
+            xml_path = image_path[:-3] + 'xml'
+            real_boxes_1, real_labels_1 = read_xml(xml_path)
+            real_boxes_1 = real_boxes_1.unsqueeze(0)
+            pred_boxes_1 = torch.squeeze(output_1[0])
+            norm_pred_bboxes_1 = pred_boxes_1
+            norm_real_bboxes = torch.clone(real_boxes_1)
+            height_1, width_1 = read_im_size()
+            a = pred_boxes_1[:,0] * width_1
+            b = pred_boxes_1[:,1] * height_1
+            pred_boxes_1 = torch.stack([a, b], 1)
+            pred_boxes_1 = pred_boxes_1.unsqueeze(0) #1
+            pred_labels_1 = output_1[1]
+            mse_losses_1 =  mse_of_test_image(pred_labels_1, norm_pred_bboxes_1, real_labels_1, norm_real_bboxes)
+            #print(f"predC {pred_labels_1} \npredB {norm_pred_bboxes} \ntargetC {real_labels_1} \ntargetB {real_boxes_1}")
+            img = read_image(image_path)
+            real_boxes_1[:, :, 0] = real_boxes_1[:, :, 0] * width_1
+            real_boxes_1[:, :, 1] = real_boxes_1[:, :, 1] * height_1
+            img = draw_keypoints(img, pred_boxes_1, width=3, colors=(255,0,0), radius = 5)
+            img = draw_keypoints(img, real_boxes_1, width=3, colors=(0,255,0), radius = 4)
+            
+            img = torchvision.transforms.ToPILImage()(img)
+            #print(f"predB {pred_boxes_1.size()}")
+            for i in range(pred_boxes_1.size()[1]):
+                ImageDraw.Draw(img).text((pred_boxes_1[0,i,0]+10, pred_boxes_1[0,i,1]),'(b){:.2f},{:.4f}'.format(pred_labels_1[0,i], mse_losses_1[i]),(255, 0, 0))
+        
+            
         model.train()
         indexes = random.sample(range(dir_size), batch_size)
         bboxes, labels = read_boxes(train_dir, indexes, max_objects)
@@ -211,7 +307,7 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
         predictions = model(images)
         #print(predictions[0])
         #print(f"predC {predictions[1].size()}, predB {predictions[0].size()}, targetC {labels.size()}, targetB {bboxes.size()}")
-        totalLoss, classLoss, bboxLoss = best_point_loss(predictions[1].float(), predictions[0].float(), labels, bboxes, C = 0.1)
+        totalLoss, classLoss, bboxLoss = best_point_loss(predictions[1].float(), predictions[0].float(), labels, bboxes)
         classTrainLoss.append(round(classLoss.item(), 3))
         print(f"classLoss {classLoss}")
         print(f"bboxLoss {bboxLoss}")
@@ -222,6 +318,7 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
         
         totalTrainLoss.append(totalLoss.item())
         epochs.append(epoch)
+        
         plt.cla()
         plt.xlabel("epoch")
         plt.plot(epochs, classTrainLoss, label="Classification", linestyle = '--', color = 'green')
@@ -234,6 +331,33 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
         opt.zero_grad()
         totalLoss.backward()
         opt.step()
+        
+        model.eval()
+        with torch.no_grad():
+            output_2 = model(input_im)
+            pred_boxes_2 = torch.squeeze(output_2[0])
+            height_2, width_2 = read_im_size()
+            norm_pred_bboxes_2 = pred_boxes_2
+            a = pred_boxes_2[:,0] * width_2
+            b = pred_boxes_2[:,1] * height_2
+            pred_boxes_2 = torch.stack([a, b], 1)
+            pred_boxes_2 = pred_boxes_2.unsqueeze(0)
+            pred_labels_2 = output_2[1]
+            mse_losses_2 =  mse_of_test_image(pred_labels_2, norm_pred_bboxes_2, real_labels_1, norm_real_bboxes)
+            
+            
+            transform = transforms.Compose([transforms.PILToTensor()])
+            img = transform(img)
+            
+            img = draw_keypoints(img, pred_boxes_2, width=3, colors=(0,0,255), radius = 5)
+            
+            img = torchvision.transforms.ToPILImage()(img)
+            
+            for i in range(pred_boxes_2.size()[1]):
+                ImageDraw.Draw(img).text((pred_boxes_2[0,i,0]+10, pred_boxes_2[0,i,1]),'(e){:.2f},{:.4f}'.format(pred_labels_2[0,i], mse_losses_2[i]),(0, 0, 255))
+    
+            img.show()
+        model.train()
     
     plt.savefig(saving_path + '/loss.png')
     plt.show()
@@ -243,11 +367,11 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('num_epoch', nargs='?', default=150, help="Enter number of epoch to train.", type=int)
-    parser.add_argument('batch_size', nargs='?', default=20, help="Enter the batch size", type=int)
+    parser.add_argument('batch_size', nargs='?', default=16, help="Enter the batch size", type=int)
     parser.add_argument('train_dir', nargs='?', default='/home/ubuntu/ant_detection/FILE0001', help="Specify training directory.", type=str)
     parser.add_argument('models_path', nargs='?', default='/home/ubuntu/ant_detection/models/', help="Specify directory where models will be saved.", type=str)
     parser.add_argument('learning_rate', nargs='?', default=1e-4, help="Enter learning rate for optimizer", type=float)
-    parser.add_argument('max_objects', nargs='?', default=10, help="Enter maximum number of objects detected per image", type=int)
+    parser.add_argument('max_objects', nargs='?', default=32, help="Enter maximum number of objects detected per image", type=int)
 
     args = parser.parse_args()
     num_epoch = args.num_epoch
