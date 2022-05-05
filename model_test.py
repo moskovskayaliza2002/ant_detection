@@ -3,10 +3,11 @@ import torchvision
 import xml.etree.ElementTree as ET
 import numpy as np
 from PIL import Image
+from PIL import ImageDraw, ImageFont
 from torchvision.transforms import transforms
 import matplotlib.pyplot as plt
 from torchvision.io import read_image 
-from torchvision.utils import draw_bounding_boxes
+from torchvision.utils import draw_bounding_boxes, draw_keypoints
 from datetime import datetime
 from model import ObjectDetector
 
@@ -16,7 +17,7 @@ import cv2
 
 
 
-def read_im_size(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
+def read_im_size(path = '/home/anton/Projects/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
     im = cv2.imread(path)
     height = im.shape[0]
     width = im.shape[1]
@@ -24,7 +25,7 @@ def read_im_size(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapsh
 
 
 def load_model(path, max_objects):
-    model = torchvision.models.detection.ssd300_vgg16(num_classes = 2, pretrained_backbone = True)
+    #model = torchvision.models.detection.ssd300_vgg16(num_classes = 2, pretrained_backbone = True)
     model = ObjectDetector(max_objects)
     model.load_state_dict(torch.load(path))
     return model
@@ -49,7 +50,8 @@ def read_xml(path):
         h = ymax - ymin
         w = xmax - xmin
 
-        list_with_single_boxes.append([xmin, ymin, xmax, ymax])
+        #list_with_single_boxes.append([xmin, ymin, xmax, ymax])
+        list_with_single_boxes.append([[(xmin + xmax)/2, (ymin+ ymax)/2]])
         list_of_labels.append(1)
         
     return list_with_single_boxes, list_of_labels
@@ -75,13 +77,15 @@ def test_model(model_path, image_path, max_objects):
     pred_boxes = torch.squeeze(results[0])
     print(pred_boxes)
     height, width = read_im_size()
-    a = pred_boxes[:,0] * height
-    b = pred_boxes[:,1] * width
-    c = pred_boxes[:,2] * height
-    d = pred_boxes[:,3] * width
-    x2 = c - a 
-    y2 = d - b
-    pred_boxes = torch.stack([a, b, x2, y2], 1)
+    a = pred_boxes[:,0] * width
+    b = pred_boxes[:,1] * height
+    #c = pred_boxes[:,2] * height
+    #d = pred_boxes[:,3] * width
+    #x2 = c - a 
+    #y2 = d - b
+    #pred_boxes = torch.stack([a, b, x2, y2], 1)
+    pred_boxes = torch.stack([a, b], 1)
+    pred_boxes = pred_boxes.unsqueeze(1)
     pred_labels = results[1]
     indexes = []
     print(pred_boxes.size())
@@ -92,11 +96,20 @@ def test_model(model_path, image_path, max_objects):
     
     img = read_image(image_path)
     
-    img = draw_bounding_boxes(img, pred_boxes, width=3, colors=(255,0,0))
-    img = draw_bounding_boxes(img, real_boxes, width=3, colors=(0,255,0))
+    #img = draw_bounding_boxes(img, pred_boxes, width=3, colors=(255,0,0))
+    #img = draw_bounding_boxes(img, real_boxes, width=3, colors=(0,255,0))
         
-    img = torchvision.transforms.ToPILImage()(img) 
-    img
+    
+    img = draw_keypoints(img, pred_boxes, width=3, colors=(255,0,0), radius = 5)
+    img = draw_keypoints(img, real_boxes, width=3, colors=(0,255,0), radius = 4)
+        
+    img = torchvision.transforms.ToPILImage()(img)     
+    
+    #font = ImageFont.truetype("sans-serif.ttf", 16)
+    #font = ImageFont.truetype('arial')
+    for i in range(pred_boxes.size()[0]):
+        ImageDraw.Draw(img).text((pred_boxes[i,0,0]+10, pred_boxes[i,0,1]),'{:.2f}'.format(pred_labels[0,i]),(255, 0, 0))
+    
     img.show()
     
     

@@ -14,7 +14,7 @@ class ObjectDetector(nn.Module):
                                        nn.ReLU(),
                                        nn.Linear(64, 32),
                                        nn.ReLU(),
-                                       nn.Linear(32, 4 * max_detections),
+                                       nn.Linear(32, 2 * max_detections),
                                        nn.Sigmoid())
                                        
         self.classifier = nn.Sequential(nn.BatchNorm1d(1000),
@@ -31,7 +31,7 @@ class ObjectDetector(nn.Module):
         features = self.baseModel(x)
         bboxes = self.regressor(features)
         classLogits = self.classifier(features)
-        bboxes = bboxes.view(-1, self.max_detections, 4)
+        bboxes = bboxes.view(-1, self.max_detections, 2)
         classLogits = classLogits.view(-1, self.max_detections)
         return (bboxes, classLogits)
 

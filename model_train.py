@@ -14,9 +14,10 @@ from torch import nn
 import torchvision
 import numpy as np
 import cv2
+from giou_loss import giou_loss
 
 
-def read_im_size(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
+def read_im_size(path = '/home/anton/Projects/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
     im = cv2.imread(path)
     height = im.shape[0]
     width = im.shape[1]
@@ -34,7 +35,13 @@ def read_boxes(directory, indexes, max_objs):
     for f in os.scandir(directory):
         if f.is_file() and f.path.split('.')[-1].lower() == 'xml':
             all_files.append(f.path)
-    for xml_file in all_files:
+    
+    #i = 0
+    for i, xml_file in enumerate(all_files):
+        if i not in indexes:
+            #i+=1
+            continue
+        #i+=1
         tree = ET.parse(xml_file)
         root = tree.getroot()
         one_im_l = []
@@ -55,7 +62,8 @@ def read_boxes(directory, indexes, max_objs):
             w = xmax - xmin
             
             single_label = torch.tensor([1]).float()
-            single_box = torch.tensor([xmin, ymin, w, h]).float()
+            #single_box = torch.tensor([xmin, ymin, w, h]).float()
+            single_box = torch.tensor([(xmin + xmax)/2, (ymin+ymax)/2]).float() / 224
             one_im_boxes.append(single_box)
             one_im_labels.append(single_label)
 
@@ -64,36 +72,38 @@ def read_boxes(directory, indexes, max_objs):
                 break
             # break if cnt exeeds max_object
         # add to tensor values for max_object
-        if len(one_im_boxes) < max_objs:
-            for i in range(len(one_im_boxes),max_objs):
-                one_im_boxes.append(torch.tensor([0,0,0,0]).float())
-                one_im_labels.append(torch.tensor([0]).float())
+        #if len(one_im_boxes) < max_objs:
+            #for i in range(len(one_im_boxes),max_objs):
+                ##one_im_boxes.append(torch.tensor([0,0,0,0]).float())
+                #one_im_boxes.append(torch.tensor([0,0]).float())
+                #one_im_labels.append(torch.tensor([0]).float())
                 
         
         all_boxes.append(torch.stack(one_im_boxes))
         all_labels.append(torch.stack(one_im_labels))
         
-    all_boxes = torch.stack(all_boxes)
-    all_labels = torch.stack(all_labels)
-    all_labels = all_labels.view(-1, max_objs)
+    #all_boxes = torch.stack(all_boxes)
+    #all_labels = torch.stack(all_labels)
+    #all_labels = all_labels.view(-1, max_objs)
     
-    batch_list_l = []
-    batch_list_b = []
-    for i in indexes:
-        batch_list_b.append(all_boxes[i,:,:])
-        batch_list_l.append(all_labels[i,:])
+    #batch_list_l = []
+    #batch_list_b = []
+    #for i in indexes:
+        #batch_list_b.append(all_boxes[i,:,:])
+        #batch_list_l.append(all_labels[i,:])
         
-    batch_list_b = torch.stack(batch_list_b)
-    batch_list_l = torch.stack(batch_list_l)
-    batch_list_l = batch_list_l.view(-1, max_objs)
+    #batch_list_b = torch.stack(batch_list_b)
+    #batch_list_l = torch.stack(batch_list_l)
+    #batch_list_l = batch_list_l.view(-1, max_objs)
     
-    batch_list_b = rescale(batch_list_b)
+    #all_boxes = rescale(all_boxes)
     
-    return batch_list_b, batch_list_l
-
+    return all_boxes, all_labels
 
 def rescale(bbox):
-    bbox = bbox / 224
+    for box in bbox:
+        box = box / 224
+    #print(bbox)
     return bbox
 
 
@@ -126,9 +136,11 @@ def save_model(model, path):
     torch.save(model.state_dict(), path)
     
 
-def custom_loss(predC, predB, targetC, targetB, C = 5):
+def custom_loss(predC, predB, targetC, targetB, C = 1):
     classLoss = nn.BCELoss()(predC, targetC)
-    bboxLoss = torch.sum(nn.MSELoss(reduction='none')(predB, targetB),dim = 2)  
+    bboxLoss = torch.sum(nn.MSELoss(reduction='none')(predB, targetB),dim = 2)
+    #bboxLoss = giou_loss(predB, targetB, reduction='none')
+    
     #print(f'bboxLoss size {bboxLoss.size()}')
     #print(f'targetC size {targetC.size()}')
     bboxLoss = torch.matmul(bboxLoss , targetC.T)
@@ -136,6 +148,39 @@ def custom_loss(predC, predB, targetC, targetB, C = 5):
 
     return totalLoss, classLoss, bboxLoss.mean() / C
 
+# predC - tensor [batch, max_obj]
+# predB - tensor [batch, max_obj, 2]
+# targetC - list (x batch) of tensors [n_real_objects]
+# targetB - list (x batch) of tensors [n_real_objects, 2]
+# mse_thresh - threshold to count objects as positive
+def best_point_loss(predC, predB, targetC, targetB, mse_thresh = 0.2, C = 1):
+    MSE = nn.MSELoss(reduction='sum')
+    BCE = nn.BCELoss(reduction='mean')
+    mse_loss = 0
+    bce_loss = 0
+    # for each batch element construct matrix [max_obj, n_real_objects] of mse between predicted points to all reals
+    for b in range(predB.size()[0]):
+        pred = predB[b,:,:] # [max_obj, 2]
+        targ = targetB[b] # [n_real_objects, 2]
+        
+        mse = torch.zeros(pred.size()[0], targ.size()[0])
+        #print(pred, targ)
+        for i in range(pred.size()[0]):
+            for j in range(targ.size()[0]):
+                mse[i,j] = MSE(pred[i], targ[j])
+        #print(mse)
+        maxes, max_inds = torch.max(mse, dim = 1)
+        zeros = torch.zeros(pred.size()[0])
+        mse_losses = torch.where(maxes < mse_thresh, maxes, zeros)
+        mse_loss += torch.mean(mse_losses)
+        
+        bce_targets = (maxes < mse_thresh).float()
+        bce_loss += BCE(predC[b,:], bce_targets)
+    
+    mse_loss = mse_loss / C
+    total_loss = mse_loss + bce_loss
+    return total_loss, bce_loss, mse_loss
+    
 
 def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -160,12 +205,13 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
         indexes = random.sample(range(dir_size), batch_size)
         bboxes, labels = read_boxes(train_dir, indexes, max_objects)
         images = read_input_image(train_dir, indexes)
-        (images, labels, bboxes) = (images.to(device), labels.to(device), bboxes.to(device))
+        #(images, labels, bboxes) = (images.to(device), labels.to(device), bboxes.to(device))
+        images = images.to(device)
         #print(images.size())
         predictions = model(images)
         #print(predictions[0])
         #print(f"predC {predictions[1].size()}, predB {predictions[0].size()}, targetC {labels.size()}, targetB {bboxes.size()}")
-        totalLoss, classLoss, bboxLoss = custom_loss(predictions[1].float(), predictions[0].float(), labels, bboxes)
+        totalLoss, classLoss, bboxLoss = best_point_loss(predictions[1].float(), predictions[0].float(), labels, bboxes, C = 0.1)
         classTrainLoss.append(round(classLoss.item(), 3))
         print(f"classLoss {classLoss}")
         print(f"bboxLoss {bboxLoss}")
