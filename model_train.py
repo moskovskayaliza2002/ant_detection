@@ -19,6 +19,7 @@ from giou_loss import giou_loss
 from torchvision.utils import draw_bounding_boxes, draw_keypoints
 from PIL import Image
 from PIL import ImageDraw, ImageFont
+from torchvision.transforms.functional import hflip, vflip, to_tensor
 
 
 def read_xml(path):
@@ -49,7 +50,7 @@ def read_xml(path):
         list_of_labels.append(1)
         
     all_boxes = torch.stack(list_with_single_boxes)
-    print(f"all bboxes {all_boxes}")
+    #print(f"all bboxes {all_boxes}")
         
     return all_boxes, list_of_labels
 
@@ -144,12 +145,54 @@ def rescale(bbox):
     return bbox
 
 
+def aumentation(im_type, im):
+    #nothing
+    if im_type == 0:
+        new_im = im
+    #mirror h
+    elif im_type == 1:
+        new_im = hflip(im)
+        #new_im = torch.flip(im, (1,))
+        img = torchvision.transforms.ToPILImage()(new_im)
+        img.show()
+        
+    #mirror v
+    elif im_type == 2:
+        new_im = vflip(im)
+    #both
+    else:
+        new_im = hflip(vflip(im))
+        
+    return new_im
+
+
+def bboxes_flip(bboxes, aug):
+    new_bboxes = bboxes.copy()
+    for i in range(len(aug)):
+        #nothing
+        if aug[i] == 0:
+            new_bboxes[i] = bboxes[i]
+        #mirror h
+        elif aug[i] == 1:
+            #new_bboxes[i,:,0] = torch.ones(bboxes.size()[2]) - bboxes[i,:,0]
+            new_bboxes[i][:,0] = 1 - bboxes[i][:,0]
+        #mirror v
+        elif aug[i] == 2:
+            #new_bboxes[i,:,1] = 1 - bboxes[i,:,1]
+            new_bboxes[i][:,1] = 1 - bboxes[i][:,1]
+        #both
+        else:
+            new_bboxes[i][:,0] = 1 - bboxes[i][:,0]
+            new_bboxes[i][:,1] = 1 - bboxes[i][:,1]
+            
+    return new_bboxes
+
 def image_transform(or_im):
     resize = transforms.Resize((224,224))
-    to_tensor = transforms.ToTensor()
+    totensor = transforms.ToTensor()
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     
-    return normalize(to_tensor(resize(or_im)))
+    return normalize(totensor(resize(or_im)))
 
 
 def read_input_image(directory, indexes):
@@ -161,11 +204,12 @@ def read_input_image(directory, indexes):
             transf_image = image_transform(original_image)
             im_input.append(transf_image)
             
+    aug_type = torch.randint(low=0,high=4, size=(len(indexes),))
     batch_im = []
-    for i in indexes:
-        batch_im.append(im_input[i])
+    for i, no in enumerate(indexes):
+        batch_im.append(aumentation(aug_type[i], im_input[no]))
     
-    return torch.stack(batch_im)
+    return torch.stack(batch_im), aug_type
 
 
 def save_model(model, path):
@@ -229,7 +273,7 @@ def open_im(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_02
     return input_im
     
     
-def mse_of_test_image(predC, predB, targetC, targetB, mse_thresh = 0.0005, C = 1):
+def mse_of_test_image(predC, predB, targetC, targetB):
     pred = torch.squeeze(predB)
     targ = torch.squeeze(targetB)
     
@@ -241,7 +285,7 @@ def mse_of_test_image(predC, predB, targetC, targetB, mse_thresh = 0.0005, C = 1
     #print('mse',mse)
     minies, min_inds = torch.min(mse, dim = 1)
     zeros = torch.zeros(pred.size()[0])
-    mse_losses = torch.where(minies < mse_thresh, minies, zeros)
+    #mse_losses = torch.where(minies < mse_thresh, minies, zeros)
     #print(f"minies {minies}")
     return minies
     
@@ -300,14 +344,15 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
         model.train()
         indexes = random.sample(range(dir_size), batch_size)
         bboxes, labels = read_boxes(train_dir, indexes, max_objects)
-        images = read_input_image(train_dir, indexes)
+        images, aug_types = read_input_image(train_dir, indexes)
+        aug_boxes = bboxes_flip(bboxes, aug_types)
         #(images, labels, bboxes) = (images.to(device), labels.to(device), bboxes.to(device))
         images = images.to(device)
         #print(images.size())
         predictions = model(images)
         #print(predictions[0])
         #print(f"predC {predictions[1].size()}, predB {predictions[0].size()}, targetC {labels.size()}, targetB {bboxes.size()}")
-        totalLoss, classLoss, bboxLoss = best_point_loss(predictions[1].float(), predictions[0].float(), labels, bboxes)
+        totalLoss, classLoss, bboxLoss = best_point_loss(predictions[1].float(), predictions[0].float(), labels, aug_boxes)
         classTrainLoss.append(round(classLoss.item(), 3))
         print(f"classLoss {classLoss}")
         print(f"bboxLoss {bboxLoss}")
@@ -356,7 +401,7 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
             for i in range(pred_boxes_2.size()[1]):
                 ImageDraw.Draw(img).text((pred_boxes_2[0,i,0]+10, pred_boxes_2[0,i,1]),'(e){:.2f},{:.4f}'.format(pred_labels_2[0,i], mse_losses_2[i]),(0, 0, 255))
     
-            img.show()
+            #img.show()
         model.train()
     
     plt.savefig(saving_path + '/loss.png')
