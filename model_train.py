@@ -153,8 +153,8 @@ def aumentation(im_type, im):
     elif im_type == 1:
         new_im = hflip(im)
         #new_im = torch.flip(im, (1,))
-        img = torchvision.transforms.ToPILImage()(new_im)
-        img.show()
+        #img = torchvision.transforms.ToPILImage()(new_im)
+        #img.show()
         
     #mirror v
     elif im_type == 2:
@@ -195,7 +195,7 @@ def image_transform(or_im):
     return normalize(totensor(resize(or_im)))
 
 
-def read_input_image(directory, indexes):
+def read_input_image(directory, indexes, flag):
     im_input = []
     for f in os.scandir(directory):
         if f.is_file() and f.path.split('.')[-1].lower() == 'jpg':
@@ -203,8 +203,11 @@ def read_input_image(directory, indexes):
             original_image = original_image.convert('RGB')
             transf_image = image_transform(original_image)
             im_input.append(transf_image)
-            
-    aug_type = torch.randint(low=0,high=4, size=(len(indexes),))
+         
+    if flag:
+        aug_type = torch.randint(low=0,high=4, size=(len(indexes),))
+    else:
+        aug_type = torch.zeros(len(indexes), dtype=torch.uint8)
     batch_im = []
     for i, no in enumerate(indexes):
         batch_im.append(aumentation(aug_type[i], im_input[no]))
@@ -342,9 +345,10 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
         
             
         model.train()
+        aug_flag = True
         indexes = random.sample(range(dir_size), batch_size)
         bboxes, labels = read_boxes(train_dir, indexes, max_objects)
-        images, aug_types = read_input_image(train_dir, indexes)
+        images, aug_types = read_input_image(train_dir, indexes, aug_flag)
         aug_boxes = bboxes_flip(bboxes, aug_types)
         #(images, labels, bboxes) = (images.to(device), labels.to(device), bboxes.to(device))
         images = images.to(device)
@@ -401,7 +405,7 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
             for i in range(pred_boxes_2.size()[1]):
                 ImageDraw.Draw(img).text((pred_boxes_2[0,i,0]+10, pred_boxes_2[0,i,1]),'(e){:.2f},{:.4f}'.format(pred_labels_2[0,i], mse_losses_2[i]),(0, 0, 255))
     
-            #img.show()
+            img.show()
         model.train()
     
     plt.savefig(saving_path + '/loss.png')
