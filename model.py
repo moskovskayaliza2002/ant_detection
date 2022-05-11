@@ -6,9 +6,13 @@ class ObjectDetector(nn.Module):
     def __init__(self, max_detections):
         super(ObjectDetector, self).__init__()
         self.max_detections = max_detections
-        self.baseModel = torchvision.models.mobilenet_v3_large(pretrained = True)
+        #self.baseModel = torchvision.models.mobilenet_v3_large(pretrained = True)
+        model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(pretrained_backbone=True)
+        modules = list(model.children())[:-3]
+        backbone = nn.Sequential(*modules)
+        self.baseModel = backbone
         
-        self.regressor = nn.Sequential(nn.Linear(1000, 128), #self.baseModel.fc.in_features
+        self.regressor = nn.Sequential(nn.Linear(672, 128), #self.baseModel.fc.in_features
                                        nn.ReLU(), 
                                        nn.Linear(128, 64),
                                        nn.ReLU(),
@@ -17,8 +21,8 @@ class ObjectDetector(nn.Module):
                                        nn.Linear(32, 2 * max_detections),
                                        nn.Sigmoid())
                                        
-        self.classifier = nn.Sequential(nn.BatchNorm1d(1000),
-                                     nn.Linear(1000, 512),
+        self.classifier = nn.Sequential(nn.BatchNorm1d(672),
+                                     nn.Linear(672, 512),
                                      nn.ReLU(),
                                      nn.Dropout(),
                                      nn.Linear(512, 512),
@@ -39,8 +43,9 @@ if __name__ == '__main__':
     model = ObjectDetector(5)
     model.eval()
     batch_size = 15
-    input_im = torch.rand(batch_size, 3, 224, 224)
-    output = model(input_im)
+    device = 'cpu'
+    inputs = [torch.rand(3, 320, 320), torch.rand(3, 500, 400)]
+    output = model(inputs)
     pred_boxes = output[0]
     pred_labels = output[1]
     print(pred_labels.size(), pred_boxes.size())

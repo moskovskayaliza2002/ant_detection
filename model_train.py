@@ -55,7 +55,7 @@ def read_xml(path):
     return all_boxes, list_of_labels
 
 
-def read_im_size(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
+def read_im_size(path = '/home/lizamoscow/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
     im = cv2.imread(path)
     height = im.shape[0]
     width = im.shape[1]
@@ -91,17 +91,17 @@ def read_boxes(directory, indexes, max_objs):
 
             ymin, xmin, ymax, xmax = None, None, None, None
 
-            ymin = int(boxes.find("bndbox/ymin").text) * 224 / height
-            xmin = int(boxes.find("bndbox/xmin").text) * 224 / width
-            ymax = int(boxes.find("bndbox/ymax").text) * 224 / height
-            xmax = int(boxes.find("bndbox/xmax").text) * 224 / width
+            ymin = int(boxes.find("bndbox/ymin").text) * 320 / height
+            xmin = int(boxes.find("bndbox/xmin").text) * 320 / width
+            ymax = int(boxes.find("bndbox/ymax").text) * 320 / height
+            xmax = int(boxes.find("bndbox/xmax").text) * 320 / width
             
             h = ymax - ymin
             w = xmax - xmin
             
             single_label = torch.tensor([1]).float()
             #single_box = torch.tensor([xmin, ymin, w, h]).float()
-            single_box = torch.tensor([(xmin + xmax)/2, (ymin+ymax)/2]).float() / 224
+            single_box = torch.tensor([(xmin + xmax)/2, (ymin+ymax)/2]).float() / 320
             one_im_boxes.append(single_box)
             one_im_labels.append(single_label)
 
@@ -140,7 +140,7 @@ def read_boxes(directory, indexes, max_objs):
 
 def rescale(bbox):
     for box in bbox:
-        box = box / 224
+        box = box / 320
     #print(bbox)
     return bbox
 
@@ -188,7 +188,7 @@ def bboxes_flip(bboxes, aug):
     return new_bboxes
 
 def image_transform(or_im):
-    resize = transforms.Resize((224,224))
+    resize = transforms.Resize((320,320))
     totensor = transforms.ToTensor()
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     
@@ -268,7 +268,7 @@ def best_point_loss(predC, predB, targetC, targetB, mse_thresh = 0.01, C = 1000)
     return total_loss, bce_loss, mse_loss
     
     
-def open_im(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
+def open_im(path = '/home/lizamoscow/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
     input_im = Image.open(path, mode='r')
     input_im = input_im.convert('RGB')
     input_im = image_transform(input_im)
@@ -295,7 +295,7 @@ def mse_of_test_image(predC, predB, targetC, targetB):
     
 
 def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
-    image_path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_32.13.990.jpg'
+    image_path = '/home/lizamoscow/ant_detection/FILE0001/FILE0001.MOV_snapshot_32.13.990.jpg'
     input_im = open_im()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     time_str = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -417,8 +417,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('num_epoch', nargs='?', default=150, help="Enter number of epoch to train.", type=int)
     parser.add_argument('batch_size', nargs='?', default=16, help="Enter the batch size", type=int)
-    parser.add_argument('train_dir', nargs='?', default='/home/ubuntu/ant_detection/FILE0001', help="Specify training directory.", type=str)
-    parser.add_argument('models_path', nargs='?', default='/home/ubuntu/ant_detection/models/', help="Specify directory where models will be saved.", type=str)
+    parser.add_argument('train_dir', nargs='?', default='/home/lizamoscow/ant_detection/FILE0001', help="Specify training directory.", type=str)
+    parser.add_argument('models_path', nargs='?', default='/home/lizamoscow/ant_detection/models/', help="Specify directory where models will be saved.", type=str)
     parser.add_argument('learning_rate', nargs='?', default=1e-4, help="Enter learning rate for optimizer", type=float)
     parser.add_argument('max_objects', nargs='?', default=32, help="Enter maximum number of objects detected per image", type=int)
 
