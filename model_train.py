@@ -237,9 +237,10 @@ def custom_loss(predC, predB, targetC, targetB, C = 1):
 # targetC - list (x batch) of tensors [n_real_objects]
 # targetB - list (x batch) of tensors [n_real_objects, 2]
 # mse_thresh - threshold to count objects as positive
-def best_point_loss(predC, predB, targetC, targetB, mse_thresh = 0.01, C = 1000):
+def best_point_loss(predC, predB, targetC, targetB, mse_thresh = 0.01, C = 100):
     MSE = nn.MSELoss(reduction='sum')
     BCE = nn.BCELoss(reduction='mean')
+    BCE_nr = nn.BCELoss(reduction='none')
     mse_loss = 0
     bce_loss = 0
     # for each batch element construct matrix [max_obj, n_real_objects] of mse between predicted points to all reals
@@ -257,16 +258,42 @@ def best_point_loss(predC, predB, targetC, targetB, mse_thresh = 0.01, C = 1000)
         zeros = torch.zeros(pred.size()[0])
         mse_losses = torch.where(maxes < mse_thresh, maxes, zeros)
         #print(mse_losses)
-        mse_loss += torch.mean(mse_losses)
+                
+        mean_non_zero = torch.nan_to_num(torch.sum(mse_losses) / torch.count_nonzero(mse_losses))                
+        #mean = torch.mean(mse_losses)        
+        #print(mean, mean_non_zero)
+        mse_loss += mean_non_zero
+        
+        # supd dupa bce loss calc        
         
         bce_targets = (maxes < mse_thresh).float()
-        bce_loss += BCE(predC[b,:], bce_targets)
+        
+        pos_index = (maxes < mse_thresh)
+        neg_index = (maxes >= mse_thresh)
+        
+        n_pos = torch.count_nonzero(pos_index)
+        
+        if n_pos == 0:
+            bce_pos = 0                        
+            
+            bce_neg_hard = BCE(predC[b,:], torch.zeros(predC.size()[1]))
+        else:
+            bce_pos = BCE(predC[b,pos_index], torch.ones(n_pos))
+            
+            bce_neg_all = BCE_nr(predC[b,neg_index], torch.zeros(torch.count_nonzero(neg_index)))
+            
+            bce_neg_all_sorted, _ = torch.sort(bce_neg_all)
+            
+            bce_neg_hard = torch.mean(bce_neg_all_sorted[:n_pos*3])
+        
+        #bce_loss += BCE(predC[b,:], bce_targets)
+        bce_loss += (bce_pos+bce_neg_hard)
     
     #mse_loss = mse_loss / C
     bce_loss = bce_loss / C
     total_loss = mse_loss + bce_loss
-    #return total_loss, bce_loss, mse_loss
-    return mse_loss, torch.zeros(1), mse_loss
+    return total_loss, bce_loss, mse_loss
+    #return mse_loss, torch.zeros(1), mse_loss
     
     
 def open_im(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
@@ -301,12 +328,12 @@ def init_weights(m):
         #bias = round(bias, 2)
         #m.bias.data.fill_(bias)
         size = m.bias.size()
-        new_values = torch.FloatTensor(size).uniform_(-1, 1)
+        new_values = torch.FloatTensor(size).uniform_(-3, 3)
         m.bias.data = new_values
                 
 
 def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
-    image_path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_32.13.990.jpg'
+    image_path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_03.13.259.jpg'
     input_im = open_im()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     time_str = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -430,7 +457,7 @@ if __name__ == '__main__':
     parser.add_argument('batch_size', nargs='?', default=32, help="Enter the batch size", type=int)
     parser.add_argument('train_dir', nargs='?', default='/home/ubuntu/ant_detection/FILE0001', help="Specify training directory.", type=str)
     parser.add_argument('models_path', nargs='?', default='/home/ubuntu/ant_detection/models/', help="Specify directory where models will be saved.", type=str)
-    parser.add_argument('learning_rate', nargs='?', default=1e-4, help="Enter learning rate for optimizer", type=float)
+    parser.add_argument('learning_rate', nargs='?', default=1e-2, help="Enter learning rate for optimizer", type=float)
     parser.add_argument('max_objects', nargs='?', default=32, help="Enter maximum number of objects detected per image", type=int)
 
     args = parser.parse_args()
