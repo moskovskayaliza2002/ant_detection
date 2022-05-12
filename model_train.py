@@ -19,7 +19,7 @@ from giou_loss import giou_loss
 from torchvision.utils import draw_bounding_boxes, draw_keypoints
 from PIL import Image
 from PIL import ImageDraw, ImageFont
-from torchvision.transforms.functional import hflip, vflip, to_tensor
+from torchvision.transforms.functional import hflip, vflip, to_tensor, rotate
 
 
 def read_xml(path):
@@ -160,8 +160,14 @@ def aumentation(im_type, im):
     elif im_type == 2:
         new_im = vflip(im)
     #both
-    else:
+    elif im_type == 3:
         new_im = hflip(vflip(im))
+    # против часовой
+    elif im_type == 4:
+        new_im = rotate(img, 90)
+    # по часовой
+    elif m_type == 5:
+        new_im = rotate(img, -90)
         
     return new_im
 
@@ -181,9 +187,18 @@ def bboxes_flip(bboxes, aug):
             #new_bboxes[i,:,1] = 1 - bboxes[i,:,1]
             new_bboxes[i][:,1] = 1 - bboxes[i][:,1]
         #both
-        else:
+        elif aug[i] == 3:
             new_bboxes[i][:,0] = 1 - bboxes[i][:,0]
             new_bboxes[i][:,1] = 1 - bboxes[i][:,1]
+        # против часовой
+        elif aug[i] == 4:
+            new_bboxes[i][:,0] = 1 - bboxes[i][:,1]
+            new_bboxes[i][:,1] = bboxes[i][:,0]
+        # по часовой
+        elif aug[i] == 5:
+            new_bboxes[i][:,0] = bboxes[i][:,1]
+            new_bboxes[i][:,1] = 1 - bboxes[i][:,0]
+            
             
     return new_bboxes
 
@@ -205,7 +220,7 @@ def read_input_image(directory, indexes, flag):
             im_input.append(transf_image)
          
     if flag:
-        aug_type = torch.randint(low=0,high=4, size=(len(indexes),))
+        aug_type = torch.randint(low=0,high=6, size=(len(indexes),))
     else:
         aug_type = torch.zeros(len(indexes), dtype=torch.uint8)
     batch_im = []
