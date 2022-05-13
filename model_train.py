@@ -164,10 +164,10 @@ def aumentation(im_type, im):
         new_im = hflip(vflip(im))
     # против часовой
     elif im_type == 4:
-        new_im = rotate(img, 90)
+        new_im = rotate(im, 90)
     # по часовой
-    elif m_type == 5:
-        new_im = rotate(img, -90)
+    elif im_type == 5:
+        new_im = rotate(im, -90)
         
     return new_im
 
@@ -358,7 +358,7 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
         os.mkdir(dir)
     saving_path = models_path + time_str
     model = ObjectDetector(max_objects)
-    model.apply(init_weights)
+    #model.apply(init_weights)
     model = model.to(device)
     opt = Adam(model.parameters(), lr=lr)
     min_loss = float('inf')

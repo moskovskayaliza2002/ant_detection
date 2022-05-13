@@ -14,23 +14,31 @@ class ObjectDetector(nn.Module):
         #backbone = nn.Sequential(*modules)
         self.baseModel = model#backbone
         
-        self.upModel = nn.Sequential( #self.baseModel.fc.in_features
-                                       nn.ReLU(), 
-                                       nn.Linear(128, 64),
-                                       nn.ReLU(),
-                                       nn.Linear(64, 32),
-                                       nn.ReLU(),
-                                       nn.Linear(32, 3 * max_detections),
-                                       nn.Sigmoid())
+        self.conv = nn.Conv2d(256, 256, kernel_size=(3,3), stride=(1,1), padding=(1, 0), dilation=(1,1), bias=False)
         
+        self.analyzer_c = nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, max_detections),
+            nn.Sigmoid())
         
-        def init_weights(m):
-            if isinstance(m, nn.Linear):
-                #m.weight.data.fill_(0.01)
-                m.bias.data.fill_(0.7)
+        self.analyzer_r = nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, max_detections),
+            nn.Sigmoid())
+        
+        #self.conv.bias.data = torch.FloatTensor(self.conv.bias.size()).uniform_(-3, 3)
+        
+        #self.upModel = nn.Sequential(  nn.Linear(256*3, 128),#self.baseModel.fc.in_features
+                                       #nn.ReLU(), 
+                                       #nn.Linear(128, 64),
+                                       #nn.ReLU(),
+                                       #nn.Linear(64, 3 * max_detections),
+                                       #nn.Sigmoid())
             
-            
-        self.upModel.apply(init_weights)
         #self.classifier = nn.Sequential(nn.BatchNorm1d(128),
                                      #nn.Linear(672, 512),
                                      #nn.ReLU(),
@@ -44,7 +52,7 @@ class ObjectDetector(nn.Module):
     def forward(self, x):
         features = self.baseModel(x)
         #print(features.keys())
-        features = torch.squeeze(features['5'])
+        features = features['3']
         #print(features.size())
         #print("*************************************\n\n\n\n\n\n")
         #bboxes = self.regressor(features)
@@ -52,10 +60,23 @@ class ObjectDetector(nn.Module):
         #bboxes = bboxes.view(-1, self.max_detections, 2)
         #classLogits = classLogits.view(-1, self.max_detections)
         #return (bboxes, classLogits)
-        output = self.upModel(features)
-        output = output.view(-1, self.max_detections, 3)
-        classifier = output[:,:,0]
-        regressor = output[:,:,1:]
+        convLayer = self.conv(features)
+        #print(convLayer)
+        #output = self.upModel(convLayer)
+        #output = output.view(-1, self.max_detections, 3)
+        classifier = (convLayer[:,:,0,0])
+        regressor = (convLayer[:,:,1:,0])
+        
+        
+        regressor = regressor.permute(0,2,1) # swap last and pre last
+        #print(regressor)
+        
+        classifier = self.analyzer_c(classifier)
+        
+        regressor = self.analyzer_r(regressor)
+        #print(regressor)
+        
+        regressor = regressor.permute(0,2,1) # back
         #print("class\n", classifier.size())
         #print("reg\n", regressor.size())
         #return output[:,], output[:,1:]
