@@ -17,14 +17,12 @@ class ObjectDetector(nn.Module):
         self.conv = nn.Conv2d(256, 256, kernel_size=(3,3), stride=(1,1), padding=(1, 0), dilation=(1,1), bias=False)
         
         self.analyzer_c = nn.Sequential(
-            nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
             nn.Linear(256, max_detections),
             nn.Sigmoid())
         
         self.analyzer_r = nn.Sequential(
-            nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
             nn.Linear(256, max_detections),

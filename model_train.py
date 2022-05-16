@@ -55,7 +55,7 @@ def read_xml(path):
     return all_boxes, list_of_labels
 
 
-def read_im_size(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
+def read_im_size(path = '/home/lizamoscow/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
     im = cv2.imread(path)
     height = im.shape[0]
     width = im.shape[1]
@@ -311,7 +311,7 @@ def best_point_loss(predC, predB, targetC, targetB, mse_thresh = 0.01, C = 100):
     #return mse_loss, torch.zeros(1), mse_loss
     
     
-def open_im(path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
+def open_im(path = '/home/lizamoscow/ant_detection/FILE0001/FILE0001.MOV_snapshot_02.22.953.jpg'):
     input_im = Image.open(path, mode='r')
     input_im = input_im.convert('RGB')
     input_im = image_transform(input_im)
@@ -348,7 +348,7 @@ def init_weights(m):
                 
 
 def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
-    image_path = '/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_03.13.259.jpg'
+    image_path = '/home/lizamoscow/ant_detection/FILE0001/FILE0001.MOV_snapshot_03.13.259.jpg'
     input_im = open_im()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     time_str = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -468,10 +468,10 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('num_epoch', nargs='?', default=400, help="Enter number of epoch to train.", type=int)
+    parser.add_argument('num_epoch', nargs='?', default=150, help="Enter number of epoch to train.", type=int)
     parser.add_argument('batch_size', nargs='?', default=32, help="Enter the batch size", type=int)
-    parser.add_argument('train_dir', nargs='?', default='/home/ubuntu/ant_detection/FILE0001', help="Specify training directory.", type=str)
-    parser.add_argument('models_path', nargs='?', default='/home/ubuntu/ant_detection/models/', help="Specify directory where models will be saved.", type=str)
+    parser.add_argument('train_dir', nargs='?', default='/home/lizamoscow/ant_detection/FILE0001', help="Specify training directory.", type=str)
+    parser.add_argument('models_path', nargs='?', default='/home/lizamoscow/ant_detection/models/', help="Specify directory where models will be saved.", type=str)
     parser.add_argument('learning_rate', nargs='?', default=1e-2, help="Enter learning rate for optimizer", type=float)
     parser.add_argument('max_objects', nargs='?', default=32, help="Enter maximum number of objects detected per image", type=int)
 
