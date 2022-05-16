@@ -70,8 +70,8 @@ def test_model(model_path, image_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('load_path', nargs='?', default='/home/ubuntu/ant_detection/models/20220414-151236/best_model.pt', help="Specify full path to model to load.", type=str)
-    parser.add_argument('image_path', nargs='?', default='/home/ubuntu/ant_detection/FILE0001/FILE0001.MOV_snapshot_15.22.521.jpg', help="Specify full path to image you going to test", type=str)
+    parser.add_argument('load_path', nargs='?', default='/home/lizamoscow/ant_detection/models/20220516-194408/best_model.pt', help="Specify full path to model to load.", type=str)
+    parser.add_argument('image_path', nargs='?', default='/home/lizamoscow/ant_detection/FILE0001/FILE0001.MOV_snapshot_15.22.521.jpg', help="Specify full path to image you going to test", type=str)
     args = parser.parse_args()
     
     load_path = args.load_path

@@ -16,32 +16,23 @@ def read_boxes(directory, indexes):
     all_files = []
     
     for f in os.scandir(directory):
-        if f.is_file() and f.path.split('.')[-1].lower() == 'xml':
+        if f.is_file() and f.path.split('.')[-1].lower() == 'txt':
             all_files.append(f.path)
-       
+    
     all_dicts = []
     
-    
-    for xml_file in all_files:
-        tree = ET.parse(xml_file)
-        root = tree.getroot()
+    for txt_file in all_files:
 
         list_with_single_boxes = []
         list_of_labels = []
-
-        for boxes in root.iter('object'):
-
-            ymin, xmin, ymax, xmax = None, None, None, None
-
-            ymin = int(boxes.find("bndbox/ymin").text)
-            xmin = int(boxes.find("bndbox/xmin").text)
-            ymax = int(boxes.find("bndbox/ymax").text)
-            xmax = int(boxes.find("bndbox/xmax").text)
-
-            list_with_single_boxes.append([xmin, ymin, xmax, ymax])
-            list_of_labels.append(1)
         
-        out_dict = {'boxes':torch.FloatTensor(list_with_single_boxes), 'labels': torch.tensor(list_of_labels)}        
+        with open(txt_file) as f:
+            for line in f:
+                xmin, ymin, xmax, ymax = map(int, line[:-1].split(" "))
+                list_with_single_boxes.append([xmin, ymin, xmax, ymax])
+                list_of_labels.append(1)
+        
+        out_dict = {'boxes':torch.tensor(list_with_single_boxes), 'labels': torch.tensor(list_of_labels)}        
         all_dicts.append(out_dict)
     
     batch_dicts = []
@@ -84,6 +75,7 @@ def training(model, models_path, train_dir):
     dir = os.path.join(models_path, time_str)
     if not os.path.exists(dir):
         os.mkdir(dir)
+        
     saving_path = models_path + time_str
     reg_loss = []
     class_loss = []
@@ -118,10 +110,10 @@ def training(model, models_path, train_dir):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('num_epoch', nargs='?', default=5, help="Enter number of epoch to train.", type=int)
-    parser.add_argument('batch_size', nargs='?', default=10, help="Enter the batch size", type=int)
-    parser.add_argument('train_dir', nargs='?', default='/home/ubuntu/ant_detection/FILE0001', help="Specify training directory.", type=str)
-    parser.add_argument('models_path', nargs='?', default='/home/ubuntu/ant_detection/models/', help="Specify directory where models will be saved.", type=str)
+    parser.add_argument('num_epoch', nargs='?', default=100, help="Enter number of epoch to train.", type=int)
+    parser.add_argument('batch_size', nargs='?', default=16, help="Enter the batch size", type=int)
+    parser.add_argument('train_dir', nargs='?', default='/home/lizamoscow/ant_detection/croped_data', help="Specify training directory.", type=str)
+    parser.add_argument('models_path', nargs='?', default='/home/lizamoscow/ant_detection/models/', help="Specify directory where models will be saved.", type=str)
     args = parser.parse_args()
     num_epoch = args.num_epoch
     batch_size = args.batch_size
