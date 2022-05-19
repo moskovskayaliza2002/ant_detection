@@ -338,10 +338,6 @@ def mse_of_test_image(predC, predB, targetC, targetB):
     
 def init_weights(m):
     if isinstance(m, nn.Linear):
-        #m.weight.data.fill_(0.01)
-        #bias = random.random()
-        #bias = round(bias, 2)
-        #m.bias.data.fill_(bias)
         size = m.bias.size()
         new_values = torch.FloatTensor(size).uniform_(-3, 3)
         m.bias.data = new_values
