@@ -44,8 +44,8 @@ def generator_images(im_size, min_ants, max_ants, body_radius, head_radius, imag
             
         x_min = min(x_center_body - body_radius, x_center_head - head_radius)
         y_min = min(y_center_body - body_radius, y_center_head - head_radius)
-        x_max = max(x_center_body - body_radius, x_center_head - head_radius)
-        y_max = max(y_center_body - body_radius, y_center_head - head_radius)
+        x_max = max(x_center_body + body_radius, x_center_head + head_radius)
+        y_max = max(y_center_body + body_radius, y_center_head + head_radius)
             
             
         bboxes.append([x_min, y_min, x_max, y_max])
