@@ -66,7 +66,7 @@ def verification(boxes, left_x, left_y, right_x, right_y):
             break
     return flag
 
-
+# Изменение размеров под новый формат картинок
 def resize_bboxes(bboxes, left_x, left_y, right_x, right_y):
     new_list_bboxes = []
     k = right_y - right_x
