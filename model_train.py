@@ -252,7 +252,7 @@ def custom_loss(predC, predB, targetC, targetB, C = 1):
 # targetC - list (x batch) of tensors [n_real_objects]
 # targetB - list (x batch) of tensors [n_real_objects, 2]
 # mse_thresh - threshold to count objects as positive
-def best_point_loss(predC, predB, targetC, targetB, mse_thresh = 0.01, C = 100):
+def best_point_loss(predC, predB, targetC, targetB, mse_thresh = 0.01, C = 500):
     MSE = nn.MSELoss(reduction='sum')
     BCE = nn.BCELoss(reduction='mean')
     BCE_nr = nn.BCELoss(reduction='none')
@@ -358,7 +358,7 @@ def train(num_epoch, batch_size, train_dir, models_path, lr, max_objects):
         os.mkdir(dir)
     saving_path = models_path + time_str
     model = ObjectDetector(max_objects)
-    #model.apply(init_weights)
+    model.apply(init_weights)
     model = model.to(device)
     opt = Adam(model.parameters(), lr=lr)
     min_loss = float('inf')

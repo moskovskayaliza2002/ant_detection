@@ -40,7 +40,30 @@ def verification(boxes, left_x, left_y, right_x, right_y):
         elif i[0] < right_x < i[2] and i[1] < left_y < i[3]:
             flag = False
             break
-        
+        elif i[0] < right_x < i[2] and right_y > i[3]:
+            flag = False
+            break
+        elif i[0] < left_x < i[2] and right_y > i[3]:
+            flag = False
+            break
+        elif left_x < i[0] and i[1] < right_y < i[3]:
+            flag = False
+            break
+        elif right_x > i[2] and i[1] < right_y < i[3]:
+            flag = False
+            break
+        elif i[0] < left_x < i[2] and left_y < i[1]:
+            flag = False
+            break
+        elif i[0] < right_x < i[2] and left_y < i[1]:
+            flag = False
+            break
+        elif right_x > i[2] and i[1] < left_y < i[3]:
+            flag = False
+            break
+        elif left_x < i[0] and i[1] < left_y < i[3]:
+            flag = False
+            break
     return flag
 
 
@@ -65,7 +88,7 @@ def write_bbox(bbox, filename):
         file.writelines(str_list)
         file.close()
 
-def crop_data(root_path = '/home/ubuntu/ant_detection/'):
+def crop_data(root_path):
     
     # Prepare folder for crop images
     dir = os.path.join(root_path, 'croped_data')
@@ -101,7 +124,7 @@ def crop_data(root_path = '/home/ubuntu/ant_detection/'):
             
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/', help="Specify main directory", type=str)
+    parser.add_argument('root_path', nargs='?', default='/home/lizamoscow/ant_detection/', help="Specify main directory", type=str)
     args = parser.parse_args()
     root_path = args.root_path
     crop_data(root_path)
