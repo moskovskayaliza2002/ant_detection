@@ -68,29 +68,36 @@ def create_dataset(amound_of_data, root_path, im_size, min_ants, max_ants, body_
     saving_path = root_path + '/synthetic_data'
     if not os.path.exists(saving_path):
         os.mkdir(saving_path)
+        
+    image_path = saving_path + '/images'
+    keypoints_path = saving_path + '/keypoints'
+    bboxes_path = saving_path + '/bboxes'
+    
+    for i in [image_path, keypoints_path, bboxes_path]:
+        if not os.path.exists(i):
+            os.mkdir(i)
     
     for f in os.scandir(background_path):
         if f.is_file() and f.path.split('.')[-1].lower() == 'png':
             all_files.append(f.path)
     
     dir_size = len(glob.glob(background_path + '/*'))
-    print(dir_size)
     for i in range(amound_of_data):
         index = randint(0, dir_size-1)
         image_p = all_files[index]
         k, bb, image = generator_images(im_size, min_ants, max_ants, body_radius, head_radius, image_p)
-        im_filename = saving_path + '/image' + str(i) + '.png'
+        im_filename = saving_path + '/images' +'/image' + str(i) + '.png'
         cv2.imwrite(im_filename, image)
-        bb_filename = saving_path + '/bboxes' + str(i) + '.txt'
+        bb_filename = saving_path + '/bboxes' + '/bbox' + str(i) + '.txt'
         write_txt(bb, bb_filename)
-        k_filename = saving_path + '/keypoints' + str(i) + '.txt'
+        k_filename = saving_path + '/keypoints' + '/keypoint' + str(i) + '.txt'
         write_txt(k, k_filename)
         
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
-    parser.add_argument('amound_of_data', nargs='?', default=5, help="Specify the number of generated images", type=int)
+    parser.add_argument('amound_of_data', nargs='?', default=10, help="Specify the number of generated images", type=int)
     parser.add_argument('im_size', nargs='?', default=(320,320), help="Specify the size of generated images", type=tuple)
     parser.add_argument('min_ants', nargs='?', default=5, help="Specify the minimum amound of ants per image", type=int)
     parser.add_argument('max_ants', nargs='?', default=10, help="Specify the maximum amound of ants per image", type=int)
