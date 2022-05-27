@@ -151,7 +151,7 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
     if image_original is None and keypoints_original is None:
         plt.figure(figsize=(40,40))
         plt.imshow(image)
-        plt.show()
+        plt.show(block=True)
 
     else:
         for bbox in bboxes_original:
@@ -171,7 +171,7 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
 
         ax[1].imshow(image)
         ax[1].set_title('Transformed image', fontsize=fontsize)
-        plt.show()
+        plt.show(block=True)
 
 
 def train_rcnn(num_epochs, root):
@@ -204,13 +204,47 @@ def train_rcnn(num_epochs, root):
     optimizer = torch.optim.SGD(params, lr=0.001, momentum=0.9, weight_decay=0.0005)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.3)
     
+    all_clas_loss = []
+    all_bbox_loss = []
+    all_kps_loss = []
+    total_loss = []
+    ep = []
+    min_loss = float('inf')
+    plt.ion()
+    plt.show(block=False)
     for epoch in range(num_epochs):
-        train_one_epoch(model, optimizer, data_loader_train, device, epoch, print_freq=1000)
+        _, dictionary = train_one_epoch(model, optimizer, data_loader_train, device, epoch, print_freq=1000)
+        print(dictionary)
+        
+        loss_class = dictionary['loss_classifier'].item()
+        loss_bbox = dictionary['loss_box_reg'].item()
+        loss_keypoints = dictionary['loss_keypoint'].item()
+        total = loss_class + loss_bbox + loss_keypoints
+        all_clas_loss.append(loss_class)
+        all_bbox_loss.append(loss_bbox)
+        all_kps_loss.append(loss_keypoints)
+        total_loss.append(total)
+
+        ep.append(epoch)
+        plt.cla()
+        plt.xlabel("epoch")
+        plt.ylabel("loss")
+        plt.plot(ep, all_clas_loss, label="Classification", linestyle = '--', color = 'green')
+        plt.plot(ep, all_bbox_loss, label="Regression", linestyle = '-.', color = 'darkblue')
+        plt.plot(ep, all_kps_loss, label="Keypoints", linestyle = '--', color = 'red')
+        plt.plot(ep, all_kps_loss, label="Total", linestyle = ':', color = 'black')
+        plt.legend(loc="best")
+        plt.gcf().canvas.draw_idle()
+        plt.gcf().canvas.start_event_loop(0.3)
+
         lr_scheduler.step()
         evaluate(model, data_loader_test, device)
-    
+        if total < min_loss:
+            min_loss = total
+            torch.save(model.state_dict(), SAVING_WEIGHTS_PATH + '/best_weights.pth')
+    plt.savefig(SAVING_WEIGHTS_PATH + '/loss.png')
     # Save model weights after training
-    torch.save(model.state_dict(), SAVING_WEIGHTS_PATH + '/weights.pth')
+    torch.save(model.state_dict(), SAVING_WEIGHTS_PATH + '/full_weights.pth')
     return model
 
 
@@ -227,7 +261,7 @@ def visualizate_predictions(model, data_loader_test):
     image = (images[0].permute(1,2,0).detach().cpu().numpy() * 255).astype(np.uint8)
     scores = output[0]['scores'].detach().cpu().numpy()
 
-    high_scores_idxs = np.where(scores > 0.1)[0].tolist() # Indexes of boxes with scores > 0.7
+    high_scores_idxs = np.where(scores > 0.7)[0].tolist() # Indexes of boxes with scores > 0.7
     post_nms_idxs = torchvision.ops.nms(output[0]['boxes'][high_scores_idxs], output[0]['scores'][high_scores_idxs], 0.3).cpu().numpy() # Indexes of boxes left after applying NMS (iou_threshold=0.3)
 
     keypoints = []
@@ -244,7 +278,7 @@ def visualizate_predictions(model, data_loader_test):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=1, help="Specify number of epoch", type=int)
+    parser.add_argument('num_epoch', nargs='?', default=3, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path
