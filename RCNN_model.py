@@ -9,6 +9,7 @@ import albumentations as A # Library for augmentations
 import transforms, utils, engine, train
 from utils import collate_fn
 import torchvision
+import argparse
 
 
 def train_transform():
@@ -21,6 +22,7 @@ def train_transform():
     keypoint_params=A.KeypointParams(format='xy'), # More about keypoint formats used in albumentations library read at https://albumentations.ai/docs/getting_started/keypoints_augmentation/
     bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bboxes_labels']) # Bboxes should have labels, read more at https://albumentations.ai/docs/getting_started/bounding_boxes_augmentation/
     )
+
 
 class ClassDataset(Dataset):
     def __init__(self, root, transform=None, demo=False):                
@@ -118,6 +120,7 @@ class ClassDataset(Dataset):
     def __len__(self):
         return len(self.imgs_files)
 
+
 def get_model(num_keypoints, weights_path=None):
     
     anchor_generator = AnchorGenerator(sizes=(32, 64, 128, 256, 512), aspect_ratios=(0.25, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0))
@@ -170,11 +173,17 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
         ax[1].set_title('Transformed image', fontsize=fontsize)
         plt.show()
 
-def train_rcnn(num_epochs = 5):
+
+def train_rcnn(num_epochs, root):
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
-    KEYPOINTS_FOLDER_TRAIN = '/home/ubuntu/ant_detection/synthetic_data'
-    SAVING_WEIGHTS_PATH = '/home/ubuntu/ant_detection/rcnn_models/'
+    KEYPOINTS_FOLDER_TEST = root + '/test_data'
+    KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
+    SAVING_WEIGHTS_PATH = root + '/rcnn_models/'
+    
+    if not os.path.exists(SAVING_WEIGHTS_PATH):
+        os.mkdir(SAVING_WEIGHTS_PATH)
+    
     time_str = datetime.now().strftime("%Y%m%d-%H%M%S")
     dir = os.path.join(SAVING_WEIGHTS_PATH, time_str)
     if not os.path.exists(dir):
@@ -183,7 +192,7 @@ def train_rcnn(num_epochs = 5):
     SAVING_WEIGHTS_PATH += time_str
     
     dataset_train = ClassDataset(KEYPOINTS_FOLDER_TRAIN, transform=train_transform(), demo=False)
-    dataset_test = ClassDataset(KEYPOINTS_FOLDER_TRAIN, transform=None, demo=False)
+    dataset_test = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
 
     data_loader_train = DataLoader(dataset_train, batch_size=3, shuffle=True, collate_fn=collate_fn)
     data_loader_test = DataLoader(dataset_test, batch_size=1, shuffle=False, collate_fn=collate_fn)
@@ -203,6 +212,7 @@ def train_rcnn(num_epochs = 5):
     # Save model weights after training
     torch.save(model.state_dict(), SAVING_WEIGHTS_PATH + '/weights.pth')
     return model
+
 
 def visualizate_predictions(model, data_loader_test):
     iterator = iter(data_loader_test)
@@ -230,15 +240,24 @@ def visualizate_predictions(model, data_loader_test):
     
     visualize(image, bboxes, keypoints)
     
+    
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
+    parser.add_argument('num_epoch', nargs='?', default=1, help="Specify number of epoch", type=int)
+    args = parser.parse_args()
+    
+    root_path = args.root_path
+    num_epoch = args.num_epoch
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    KEYPOINTS_FOLDER_TEST = '/home/ubuntu/ant_detection/test_data'
+    
+    model = train_rcnn(num_epoch, root_path)
+    
+    KEYPOINTS_FOLDER_TEST = root_path + '/test_data'
     dataset = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
     data_loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
 
     iterator = iter(data_loader)
     batch = next(iterator)
-    
-    trained = get_model(2, '/home/ubuntu/ant_detection/rcnn_models/20220525-161500/weights.pth')
-    #model = train_rcnn(10)
-    visualizate_predictions(trained, data_loader)
+
+    visualizate_predictions(model, data_loader)

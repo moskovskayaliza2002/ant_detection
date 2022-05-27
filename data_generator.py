@@ -62,18 +62,25 @@ def write_txt(list_of_lists, filename):
         file.writelines(str_list)
         file.close()
 
-def create_dataset(amound_of_data, root_path, im_size, min_ants, max_ants, body_radius, head_radius):
+def create_dataset(amound_of_data, root_path, background_path, im_size, min_ants, max_ants, body_radius, head_radius):
     all_files = []
-    background_path = root_path + '/background_im'
-    saving_path = root_path + '/synthetic_data'
-    if not os.path.exists(saving_path):
-        os.mkdir(saving_path)
+    if background_path == None:
+        background_path = root_path + '/background_im'
+    saving_path_tr = root_path + '/train_data'
+    saving_path_te = root_path + '/test_data'
+    for i in [saving_path_tr, saving_path_te]:
+        if not os.path.exists(i):
+            os.mkdir(i)
         
-    image_path = saving_path + '/images'
-    keypoints_path = saving_path + '/keypoints'
-    bboxes_path = saving_path + '/bboxes'
+    image_path_tr = saving_path_tr + '/images'
+    keypoints_path_tr = saving_path_tr + '/keypoints'
+    bboxes_path_tr = saving_path_tr + '/bboxes'
     
-    for i in [image_path, keypoints_path, bboxes_path]:
+    image_path_te = saving_path_te + '/images'
+    keypoints_path_te = saving_path_te + '/keypoints'
+    bboxes_path_te = saving_path_te + '/bboxes'
+    
+    for i in [image_path_tr, keypoints_path_tr, bboxes_path_tr, image_path_te, keypoints_path_te, bboxes_path_te]:
         if not os.path.exists(i):
             os.mkdir(i)
     
@@ -86,18 +93,32 @@ def create_dataset(amound_of_data, root_path, im_size, min_ants, max_ants, body_
         index = randint(0, dir_size-1)
         image_p = all_files[index]
         k, bb, image = generator_images(im_size, min_ants, max_ants, body_radius, head_radius, image_p)
-        im_filename = saving_path + '/images' +'/image' + str(i) + '.png'
+        im_filename = image_path_tr + '/image' + str(i) + '.png'
         cv2.imwrite(im_filename, image)
-        bb_filename = saving_path + '/bboxes' + '/bbox' + str(i) + '.txt'
+        bb_filename = bboxes_path_tr + '/bbox' + str(i) + '.txt'
         write_txt(bb, bb_filename)
-        k_filename = saving_path + '/keypoints' + '/keypoint' + str(i) + '.txt'
+        k_filename = keypoints_path_tr + '/keypoint' + str(i) + '.txt'
+        write_txt(k, k_filename)
+        
+    test_amound = int(amound_of_data * 0.2)
+    
+    for i in range(test_amound):
+        index = randint(0, dir_size-1)
+        image_p = all_files[index]
+        k, bb, image = generator_images(im_size, min_ants, max_ants, body_radius, head_radius, image_p)
+        im_filename = image_path_te + '/image' + str(i) + '.png'
+        cv2.imwrite(im_filename, image)
+        bb_filename = bboxes_path_te + '/bbox' + str(i) + '.txt'
+        write_txt(bb, bb_filename)
+        k_filename = keypoints_path_te + '/keypoint' + str(i) + '.txt'
         write_txt(k, k_filename)
         
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
-    parser.add_argument('amound_of_data', nargs='?', default=10, help="Specify the number of generated images", type=int)
+    parser.add_argument('background_path', nargs='?', default=None, help="Specify file with background images", type=str)
+    parser.add_argument('amound_of_data', nargs='?', default=20, help="Specify the number of generated images", type=int)
     parser.add_argument('im_size', nargs='?', default=(320,320), help="Specify the size of generated images", type=tuple)
     parser.add_argument('min_ants', nargs='?', default=5, help="Specify the minimum amound of ants per image", type=int)
     parser.add_argument('max_ants', nargs='?', default=10, help="Specify the maximum amound of ants per image", type=int)
@@ -106,6 +127,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     root_path = args.root_path
+    background_path = args.background_path
     amound_of_data = args.amound_of_data
     im_size = args.im_size
     min_ants = args.min_ants
@@ -113,5 +135,5 @@ if __name__ == '__main__':
     body_radius = args.body_radius
     head_radius = args.head_radius
     
-    create_dataset(amound_of_data, root_path, im_size, min_ants, max_ants, body_radius, head_radius)
+    create_dataset(amound_of_data, root_path, background_path, im_size, min_ants, max_ants, body_radius, head_radius)
     
