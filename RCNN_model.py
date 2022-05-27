@@ -245,7 +245,7 @@ def train_rcnn(num_epochs, root):
     plt.savefig(SAVING_WEIGHTS_PATH + '/loss.png')
     # Save model weights after training
     torch.save(model.state_dict(), SAVING_WEIGHTS_PATH + '/full_weights.pth')
-    return model
+    return model, SAVING_WEIGHTS_PATH
 
 
 def visualizate_predictions(model, data_loader_test):
@@ -285,7 +285,7 @@ if __name__ == '__main__':
     num_epoch = args.num_epoch
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
-    model = train_rcnn(num_epoch, root_path)
+    model, weights_path = train_rcnn(num_epoch, root_path)
     
     KEYPOINTS_FOLDER_TEST = root_path + '/test_data'
     dataset = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
@@ -293,5 +293,7 @@ if __name__ == '__main__':
 
     iterator = iter(data_loader)
     batch = next(iterator)
+    
+    test_model = get_model(2, weights_path + '/best_weights.pth')
 
-    visualizate_predictions(model, data_loader)
+    visualizate_predictions(test_model, data_loader)
