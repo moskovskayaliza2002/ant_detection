@@ -116,7 +116,7 @@ def create_dataset(amound_of_data, root_path, background_path, im_size, min_ants
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
+    parser.add_argument('root_path', nargs='?', default='/home/lizamoscow/ant_detection', help="Specify main directory", type=str)
     parser.add_argument('background_path', nargs='?', default=None, help="Specify file with background images", type=str)
     parser.add_argument('amound_of_data', nargs='?', default=20, help="Specify the number of generated images", type=int)
     parser.add_argument('im_size', nargs='?', default=(320,320), help="Specify the size of generated images", type=tuple)

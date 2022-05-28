@@ -277,7 +277,7 @@ def visualizate_predictions(model, data_loader_test):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
+    parser.add_argument('root_path', nargs='?', default='/home/lizamoscow/ant_detection', help="Specify main directory", type=str)
     parser.add_argument('num_epoch', nargs='?', default=3, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
