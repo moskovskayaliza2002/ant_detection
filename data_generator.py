@@ -148,8 +148,8 @@ if __name__ == '__main__':
     parser.add_argument('min_body_r', nargs='?', default=7, help="Specify the minimum radius of the body", type=int)
     parser.add_argument('max_body_r', nargs='?', default=10, help="Specify the maximum radius of the head", type=int)
     parser.add_argument('p', nargs='?', default=0.5, help="Show the proportion of body radius to head radius. [0,1]", type=float)
-    parser.add_argument('gauss_var_min', nargs='?', default=100, help="Left bound of the Gaussian distribution variance", type=float)
-    parser.add_argument('gauss_var_max', nargs='?', default=900, help="Right bound of the Gaussian distribution variance", type=float)
+    parser.add_argument('gauss_var_min', nargs='?', default=100, help="Left bound of the Gaussian distribution variance", type=int)
+    parser.add_argument('gauss_var_max', nargs='?', default=900, help="Right bound of the Gaussian distribution variance", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path
