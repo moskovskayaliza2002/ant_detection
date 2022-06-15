@@ -277,8 +277,8 @@ def visualizate_predictions(model, data_loader_test):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/lizamoscow/ant_detection', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=3, help="Specify number of epoch", type=int)
+    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
+    parser.add_argument('num_epoch', nargs='?', default=10, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path
@@ -287,13 +287,13 @@ if __name__ == '__main__':
     
     model, weights_path = train_rcnn(num_epoch, root_path)
     
-    KEYPOINTS_FOLDER_TEST = root_path + '/test_data'
-    dataset = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
-    data_loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
+    #KEYPOINTS_FOLDER_TEST = root_path + '/test_data'
+    #dataset = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
+    #data_loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
 
-    iterator = iter(data_loader)
-    batch = next(iterator)
+    #iterator = iter(data_loader)
+    #batch = next(iterator)
     
-    test_model = get_model(2, weights_path + '/best_weights.pth')
+    #test_model = get_model(2, weights_path + '/best_weights.pth')
 
-    visualizate_predictions(test_model, data_loader)
+    #visualizate_predictions(test_model, data_loader)
