@@ -138,7 +138,7 @@ def get_model(num_keypoints, weights_path=None):
 
 def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=None, keypoints_original=None):
     fontsize = 3
-    keypoints_classes_ids2names = {0: 'B', 1: 'H'}
+    keypoints_classes_ids2names = {0: 'A', 1: 'H'}
     for bbox in bboxes:
         start_point = (bbox[0], bbox[1])
         end_point = (bbox[2], bbox[3])
@@ -177,8 +177,10 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
 def train_rcnn(num_epochs, root):
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
-    KEYPOINTS_FOLDER_TEST = root + '/test_data'
-    KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
+    #KEYPOINTS_FOLDER_TEST = root + '/test_data'
+    #KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
+    KEYPOINTS_FOLDER_TEST = root + '/TEST_on_real'
+    KEYPOINTS_FOLDER_TRAIN = root + '/TRAIN_on_real'
     SAVING_WEIGHTS_PATH = root + '/rcnn_models/'
     
     if not os.path.exists(SAVING_WEIGHTS_PATH):
@@ -278,7 +280,7 @@ def visualizate_predictions(model, data_loader_test):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=10, help="Specify number of epoch", type=int)
+    parser.add_argument('num_epoch', nargs='?', default=2, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path

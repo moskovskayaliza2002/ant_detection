@@ -32,7 +32,7 @@ def test_batch(model, data_loader_test, flag, nms_threshold, iou_threshold, dir_
                 x_center_body, y_center_body = int(gt_kps[i][0][0].item()), int(gt_kps[i][0][1].item())
                 x_center_head, y_center_head = int(gt_kps[i][1][0].item()), int(gt_kps[i][1][1].item())
                 image = cv2.circle(image.copy(), (x_center_body, y_center_body), 2, (50,205,50), -1)
-                image = cv2.putText(image.copy(),'B', (x_center_body + 2, y_center_body + 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (50,205,50), 1)
+                image = cv2.putText(image.copy(),'A', (x_center_body + 2, y_center_body + 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (50,205,50), 1)
                 image = cv2.circle(image.copy(), (x_center_head, y_center_head), 2, (50,205,50), -1)
                 image = cv2.putText(image.copy(),'H', (x_center_head + 2, y_center_head + 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (50,205,50), 1)
             
@@ -79,7 +79,7 @@ def test_of_single_image(im_path, model, flag, nms_threshold, iou_threshold):
             for i in f:
                 x_center_body, y_center_body, x_center_head, y_center_head = map(int, i[:-1].split(' '))
                 img = cv2.circle(img, (x_center_body, y_center_body), 2, (50,205,50), -1)
-                img = cv2.putText(img,'B', (x_center_body + 2, y_center_body + 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (50,205,50), 1)
+                img = cv2.putText(img,'A', (x_center_body + 2, y_center_body + 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (50,205,50), 1)
                 img = cv2.circle(img, (x_center_head, y_center_head), 2, (50,205,50), -1)
                 img = cv2.putText(img,'H', (x_center_head + 2, y_center_head + 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (50,205,50), 1)
     
