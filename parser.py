@@ -3,8 +3,9 @@ import numpy as np
 import glob
 import os
 import shutil
+import argparse
 
-def read_json(path, max_obj = 12):
+def read_json(path, max_obj = 20):
     
     head_list = [] # shape [N_im, max_obj, 2]
     abdomen_list = [] # shape [N_im, max_obj, 2]
@@ -12,14 +13,19 @@ def read_json(path, max_obj = 12):
     
     with open(path) as f:
         data = json.load(f)
-    
+    no = 0
     for img in data:
+        
+        no += 1
         single_head_list = [0] * max_obj
         single_abdomen_list = [0] * max_obj
         count_head = 0
         count_abdimen = 0
+        
+        if not 'kp-1' in img:
+            print(f"Skipped {img['img']}")
+            continue
         for kps in img['kp-1']:
-            
             label = kps['keypointlabels'][0]
             kp_x = kps['x']
             kp_y = kps['y']
@@ -99,7 +105,7 @@ def write_txt(list_of_lists, filename):
 def conv_x(old):
     old_min = new_min = 0
     old_range = 100 - 0  
-    new_range = 1920 - 0  
+    new_range = 320 - 0 # 1920 - 0
     
     converted = (((old - old_min) * new_range) / old_range) + new_min
     return converted
@@ -107,7 +113,7 @@ def conv_x(old):
 def conv_y(old):
     old_min = new_min = 0
     old_range = 100 - 0  
-    new_range = 1080 - 0
+    new_range = 320 - 0 # 1080 - 0
     
     converted = (((old - old_min) * new_range) / old_range) + new_min
     return converted
@@ -150,13 +156,15 @@ def create_dataset(root_path, json_path):
         k_filename = keypoints_path + '/keypoint' + str(real_im_number) + '.txt'
         write_txt(keypoints[i], k_filename)
         real_im_number += 1
+    print('vse zapisal')
         
         
 if __name__ == '__main__':
     #root_path - is a forder, where folger with images and a json file with annotation lies. it will create there two folders for bboxes amd keypoints txt files.
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/TRAIN_on_real', help="Specify directory to create dataset", type=str)
-     parser.add_argument('json_path', nargs='?', default='/home/ubuntu/ant_detection/TRAIN_on_real/project-3-at-2022-06-16-11-33-d45543a8.json', help="Specify path to json file", type=str)
+    parser.add_argument('json_path', nargs='?', default='/home/ubuntu/ant_detection/TRAIN_on_real/new.json', help="Specify path to json file", type=str)
+    args = parser.parse_args()
     ROOT = args.root_path
     JSON = args.json_path
     create_dataset(ROOT, JSON)

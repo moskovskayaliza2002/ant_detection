@@ -234,7 +234,7 @@ def train_rcnn(num_epochs, root):
         plt.plot(ep, all_clas_loss, label="Classification", linestyle = '--', color = 'green')
         plt.plot(ep, all_bbox_loss, label="Regression", linestyle = '-.', color = 'darkblue')
         plt.plot(ep, all_kps_loss, label="Keypoints", linestyle = '--', color = 'red')
-        plt.plot(ep, all_kps_loss, label="Total", linestyle = ':', color = 'black')
+        plt.plot(ep, total_loss, label="Total", linestyle = ':', color = 'black')
         plt.legend(loc="best")
         plt.gcf().canvas.draw_idle()
         plt.gcf().canvas.start_event_loop(0.3)
@@ -280,7 +280,7 @@ def visualizate_predictions(model, data_loader_test):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=2, help="Specify number of epoch", type=int)
+    parser.add_argument('num_epoch', nargs='?', default=8, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path
