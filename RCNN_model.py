@@ -142,7 +142,7 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
     for bbox in bboxes:
         start_point = (bbox[0], bbox[1])
         end_point = (bbox[2], bbox[3])
-        image = cv2.rectangle(image.copy(), start_point, end_point, (0,255,0), 2)
+        image = cv2.rectangle(image.copy(), start_point, end_point, (255,0,0), 2)
     
     for kps in keypoints:
         for idx, kp in enumerate(kps):
@@ -161,8 +161,8 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
         
         for kps in keypoints_original:
             for idx, kp in enumerate(kps):
-                image_original = cv2.circle(image_original, tuple(kp), 2, (255,0,0), 10)
-                image_original = cv2.putText(image_original, " " + keypoints_classes_ids2names[idx], tuple(kp), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 1, cv2.LINE_AA)
+                image_original = cv2.circle(image_original, tuple(kp), 2, (0,255,0), 10)
+                image_original = cv2.putText(image_original, " " + keypoints_classes_ids2names[idx], tuple(kp), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
 
         f, ax = plt.subplots(1, 2, figsize=(40, 20))
 
@@ -179,8 +179,8 @@ def train_rcnn(num_epochs, root):
     
     #KEYPOINTS_FOLDER_TEST = root + '/test_data'
     #KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
-    KEYPOINTS_FOLDER_TEST = root + '/TEST_on_real'
-    KEYPOINTS_FOLDER_TRAIN = root + '/TRAIN_on_real'
+    KEYPOINTS_FOLDER_TEST = root + '/test_data'
+    KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
     SAVING_WEIGHTS_PATH = root + '/rcnn_models/'
     
     if not os.path.exists(SAVING_WEIGHTS_PATH):
@@ -280,7 +280,7 @@ def visualizate_predictions(model, data_loader_test):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=8, help="Specify number of epoch", type=int)
+    parser.add_argument('num_epoch', nargs='?', default=5, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path
