@@ -137,7 +137,7 @@ def get_model(num_keypoints, weights_path=None):
 
 
 def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=None, keypoints_original=None):
-    fontsize = 3
+    fontsize = 12
     keypoints_classes_ids2names = {0: 'A', 1: 'H'}
     for bbox in bboxes:
         start_point = (bbox[0], bbox[1])
@@ -146,7 +146,7 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
     
     for kps in keypoints:
         for idx, kp in enumerate(kps):
-            image = cv2.circle(image.copy(), tuple(kp), 2, (255,0,0), -1)
+            image = cv2.circle(image.copy(), tuple(kp), 2, (255,0,0), 10)
             image = cv2.putText(image.copy(), " " + keypoints_classes_ids2names[idx], tuple(kp), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 1, cv2.LINE_AA)
     if image_original is None and keypoints_original is None:
         plt.figure(figsize=(40,40))
@@ -179,8 +179,8 @@ def train_rcnn(num_epochs, root):
     
     #KEYPOINTS_FOLDER_TEST = root + '/test_data'
     #KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
-    KEYPOINTS_FOLDER_TEST = root + '/test_data'
-    KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
+    KEYPOINTS_FOLDER_TEST = root + '/TEST_on_real'
+    KEYPOINTS_FOLDER_TRAIN = root + '/1to4'
     SAVING_WEIGHTS_PATH = root + '/rcnn_models/'
     
     if not os.path.exists(SAVING_WEIGHTS_PATH):
