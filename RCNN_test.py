@@ -4,6 +4,7 @@ from RCNN_model import ClassDataset, get_model, visualize
 import cv2
 import torch
 import glob
+import os
 from utils import collate_fn
 from torchvision.transforms import functional as F
 import numpy as np
@@ -11,7 +12,8 @@ import torchvision
 from crop_into4 import crop_one_im, read_boxes
 
 
-def ver(bboxes, kp, l1, l2, r1, r2, crop_w, crop_h):
+def ver(bboxes, kp, l1, l2, r1, r2, crop_w, crop_h): 
+    # Проверяет, что ни один бокс не пересекается линией разреза
     flag_l1 = True
     flag_l2 = True
     flag_r1 = True
@@ -39,17 +41,17 @@ def ver(bboxes, kp, l1, l2, r1, r2, crop_w, crop_h):
 
 
 def get_out_kp_bb(out, left_x, left_y, keypoints, bboxes):
+    # Функция для маштабирования предказанных координат на новый диапазон
     scores = out[0]['scores'].detach().cpu().numpy()
     high_scores_idxs = np.where(scores > nms_threshold)[0].tolist() # Indexes of boxes with scores > 0.7
     post_nms_idxs = torchvision.ops.nms(out[0]['boxes'][high_scores_idxs], out[0]['scores'][high_scores_idxs], iou_threshold).cpu().numpy() # Indexes of boxes left after applying NMS (iou_threshold=0.3)
-    #keypoints = []
+
     for kps in out[0]['keypoints'][high_scores_idxs][post_nms_idxs].detach().cpu().numpy():
         int_kps = [list(map(int, kp[:2])) for kp in kps]
         x_a, y_a = int_kps[0][0], int_kps[0][1]
         x_h, y_h = int_kps[1][0], int_kps[1][1]
         keypoints.append([[x_a + left_x, y_a + left_y], [x_h + left_x, y_h + left_y]])
 
-    #bboxes = []
     for bbox in out[0]['boxes'][high_scores_idxs][post_nms_idxs].detach().cpu().numpy():
         xmin, ymin, xmax, ymax = map(int, bbox.tolist())
         bboxes.append([xmin + left_x, ymin + left_y, xmax + left_x, ymax + left_y])
@@ -58,8 +60,8 @@ def get_out_kp_bb(out, left_x, left_y, keypoints, bboxes):
     
 
 def test_one_from4(im_path, model, flag, nms_threshold, iou_threshold):
+    # Функция показывающая предсказывания модели на отдельном изображении (Для модели, что делит на 4 исходное изображение)
     img = cv2.imread(im_path, cv2.IMREAD_UNCHANGED)
-    #input_im = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     input_im = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     input_im = F.to_tensor(input_im)
     orig_bb = []
@@ -90,60 +92,77 @@ def test_one_from4(im_path, model, flag, nms_threshold, iou_threshold):
         kp_l2, bb_l2 = get_out_kp_bb(out_l2, 0, c_h, kp_l1, bb_l1)
         kp_r1, bb_r1 = get_out_kp_bb(out_r1, c_w, 0, kp_l2, bb_l2)
         kp_r2, bb_r2 = get_out_kp_bb(out_r2, c_w, c_h, kp_r1, bb_r1)
-            
-        visualize(img, bb_r2, kp_r2, img, orig_bb, orig_kp)
+          
+        if flag:
+            visualize(img, bb_r2, kp_r2, img, orig_bb, orig_kp)
+        else:
+            visualize(img, bb_r2, kp_r2)
     else:
         print("Изображение не подходит")
     
+
+def find_bbox(num, root_path):
+    # Находит файл с боксами, относящийся к изображению и возвращает считанные значения
+    bb = []
+    bbox_path = root_path + '/bboxes'
+    for f in os.scandir(bbox_path):
+        if f.is_file() and f.path.split('.')[-1].lower() == 'txt':
+            if int(f.path[f.path[:-3].rfind('x') + 1 : f.path[:-3].rfind('.')]) == num:
+                bb = read_boxes(f.path)
     
-def test_batch_from4(model, data_loader_test, flag, nms_threshold, iou_threshold, dir_size):
-    print(dir_size)
-    print("зашел в функцию")
-    for i in range(dir_size):
-        print("зашел в цикл")
-        iterator = iter(data_loader_test)
-        images, targets = next(iterator)
-        images = list(image.to(device) for image in images)
-        
-        image = (images[0].permute(1,2,0).detach().cpu().numpy() * 255).astype(np.uint8)
-        gt_bboxes = targets[0]["boxes"]
-        gt_kps = targets[0]["keypoints"]
-        
-        left_1, left_2, right_1, right_2, c_w, c_h = crop_one_im(image)
-        print("разрезал")
-        bb = targets[0]["boxes"].int().tolist()
-        print(f'bb_orig: {bb[0]}')
-        kp = targets[0]["keypoints"].int().tolist()
-        kp_for_ver = []
-        orig_kp = []
-        for j in kp:
-            kp_for_ver.append([j[0][0], j[0][1], j[1][0], j[1][1]])
-            orig_kp.append([[j[0][0], j[0][1]], [j[1][0], j[1][1]]])
-        print(f'kp_orig: {orig_kp[0]}')
-        if ver(bb, kp_for_ver, left_1, left_2, right_1, right_2, c_w, c_h):
-            with torch.no_grad():
-                model.to(device)
-                model.eval()
-                out_l1 = model([F.to_tensor(cv2.cvtColor(left_1, cv2.COLOR_BGR2RGB))])
-                out_l2 = model([F.to_tensor(cv2.cvtColor(left_2, cv2.COLOR_BGR2RGB))])
-                out_r1 = model([F.to_tensor(cv2.cvtColor(right_1, cv2.COLOR_BGR2RGB))])
-                out_r2 = model([F.to_tensor(cv2.cvtColor(right_2, cv2.COLOR_BGR2RGB))])
-        
-            kp_l1, bb_l1 = get_out_kp_bb(out_l1, 0, 0, [], [])
-            kp_l2, bb_l2 = get_out_kp_bb(out_l2, 0, c_h, kp_l1, bb_l1)
-            kp_r1, bb_r1 = get_out_kp_bb(out_r1, c_w, 0, kp_l2, bb_l2)
-            kp_r2, bb_r2 = get_out_kp_bb(out_r2, c_w, c_h, kp_r1, bb_r1)
-            
-            #keypoints_pred = np.vstack((kp_l1, kp_l2, kp_r1, kp_r2))
-            #bboxes_pred =  np.vstack((bb_l1, bb_l2, bb_r1, bb_r2))
-            
-            visualize(image, bb_r2, kp_r2, image, bb, orig_kp)
-            print("зашел в рисовалку")
-        else:
-            print("Изображение не подходит")
+    return bb
+    
+def find_kp(num, root_path):
+    # Находит файл с ключевыми точками, относящийся к изображению и возвращает считанные значения
+    kp = []
+    orig_kp = []
+    kp_path = root_path + '/keypoints'
+    for f in os.scandir(kp_path):
+        if f.is_file() and f.path.split('.')[-1].lower() == 'txt':
+            if int(f.path[f.path[:-3].rfind('t') + 1 : f.path[:-3].rfind('.')]) == num:
+                kp = read_boxes(f.path)
+    for i in kp:
+        orig_kp.append([[i[0], i[1]], [i[2], i[3]]])
+    
+    return orig_kp, kp
 
     
-def test_batch(model, data_loader_test, flag, nms_threshold, iou_threshold, dir_size):
+def test_batch_from4(model, root, flag, nms_threshold, iou_threshold):
+    # Функция показывающая предсказывания модели на батче изображений (Для модели, что делит на 4 исходное изображение)
+    image_data_path = root + '/images'
+    
+    for f in os.scandir(image_data_path):
+        if f.is_file() and f.path.split('.')[-1].lower() == 'png':
+            original_image = cv2.imread(f.path)
+            original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+            number = int(f.path[f.path.rfind('e') + 1 : f.path.rfind('.')])
+            print(f"number {number}")
+            orig_bbox = find_bbox(number, root)
+            orig_kp, kp = find_kp(number, root)
+            left_1, left_2, right_1, right_2, c_w, c_h = crop_one_im(original_image)
+            if ver(orig_bbox, kp, left_1, left_2, right_1, right_2, c_w, c_h):
+                with torch.no_grad():
+                    model.to(device)
+                    model.eval()
+                    out_l1 = model([F.to_tensor(cv2.cvtColor(left_1, cv2.COLOR_BGR2RGB))])
+                    out_l2 = model([F.to_tensor(cv2.cvtColor(left_2, cv2.COLOR_BGR2RGB))])
+                    out_r1 = model([F.to_tensor(cv2.cvtColor(right_1, cv2.COLOR_BGR2RGB))])
+                    out_r2 = model([F.to_tensor(cv2.cvtColor(right_2, cv2.COLOR_BGR2RGB))])
+        
+                kp_l1, bb_l1 = get_out_kp_bb(out_l1, 0, 0, [], [])
+                kp_l2, bb_l2 = get_out_kp_bb(out_l2, 0, c_h, kp_l1, bb_l1)
+                kp_r1, bb_r1 = get_out_kp_bb(out_r1, c_w, 0, kp_l2, bb_l2)
+                kp_r2, bb_r2 = get_out_kp_bb(out_r2, c_w, c_h, kp_r1, bb_r1)
+                
+                if flag:
+                    visualize(original_image, bb_r2, kp_r2, original_image, orig_bbox, orig_kp)
+                
+                else:
+                    visualize(original_image, bb_r2, kp_r2)
+            else:
+                print(f"Изображение {f.path} не подходит")
+    
+def test_batch(model, data_loader_test, flag, nms_threshold, iou_threshold, dir_size): # Некорректно работает
     for i in range(dir_size):
         iterator = iter(data_loader_test)
         images, targets = next(iterator)
@@ -187,9 +206,8 @@ def test_batch(model, data_loader_test, flag, nms_threshold, iou_threshold, dir_
         
         
 
-def test_of_single_image(im_path, model, flag, nms_threshold, iou_threshold):
+def test_of_single_image(im_path, model, flag, nms_threshold, iou_threshold): # Работает правильно, но можно исправить рисование gt таргетов.
     img = cv2.imread(im_path, cv2.IMREAD_UNCHANGED)
-    #input_im = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     input_im = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     input_im = F.to_tensor(input_im)
     print(input_im.size())
@@ -242,7 +260,7 @@ if __name__ == '__main__':
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA/images/0a302e52-image202.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/rcnn_models/20220627-144837/best_weights.pth', help="Specify weights path", type=str)
-    parser.add_argument('draw_targets', nargs='?', default=True, help="True - will draw targets, False - will not", type=bool)
+    parser.add_argument('draw_targets', nargs='?', default=False, help="True - will draw targets, False - will not", type=bool)
     parser.add_argument('nms_threshold', nargs='?', default=0.1, help="Non maximum supression threshold for boxes", type=float)
     parser.add_argument('iou_threshold', nargs='?', default=0.1, help="IOU threshold for boxes", type=float)
     
@@ -261,9 +279,6 @@ if __name__ == '__main__':
         test_one_from4(test_data_path, test_model, draw_targets, nms_threshold, iou_threshold)
         
     else:
-        dataset = ClassDataset(test_data_path, transform=None, demo=False)
-        data_loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
-        dir_size = int(len(glob.glob(test_data_path + '/images' + '/*')))
         print('ya tyt')
         #test_batch(test_model, data_loader, draw_targets, nms_threshold, iou_threshold, dir_size)
-        test_batch_from4(test_model, data_loader, draw_targets, nms_threshold, iou_threshold, dir_size)
+        test_batch_from4(test_model, test_data_path, draw_targets, nms_threshold, iou_threshold)

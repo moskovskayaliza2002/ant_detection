@@ -7,6 +7,7 @@ import argparse
 import numpy as np
 
 def read_json(root_path, path, max_obj = 20):
+    # Основная функция, перебирает все изображения и сохраняет измененные на новый диапазон координаты боксов и ключевых точек в формат, для считывания модели.
     
     keypoints_path = root_path + '/keypoints'
     bboxes_path = root_path + '/bboxes'
@@ -46,8 +47,6 @@ def read_json(root_path, path, max_obj = 20):
                 single_head_list[count_head] = [conv_x(kp_x), conv_y(kp_y)]
                 count_head += 1
                 
-        #head_list.append(single_head_list)
-        #abdomen_list.append(single_abdomen_list)
         
         single_bboxes_list = [0] * max_obj
         for i, bboxes in enumerate(img['label']):
@@ -70,15 +69,11 @@ def read_json(root_path, path, max_obj = 20):
         print(f'№ {number}, ants: {np.count_nonzero(single_bboxes_list)}')
         #bboxes_list.append(single_bboxes_list)
     
-    #print(f'bboxes_list {len(bboxes_list), len(bboxes_list[0]), len(bboxes_list[0][0])}')
-    #print(f'\nhead_list {len(head_list), len(head_list[0]), len(head_list[0][0])}')
-    #print(f'\nabdomen_list {len(abdomen_list), len(abdomen_list[0]), len(abdomen_list[0][0])}')
-    
     return 0
 
 
 def correct_comparison(h, a, b):
-    #N_im = len(h)
+    # Подбирает ключевые точки под соответствующие боксы
     N_ob = len(h)
     single_im_h = [0] * N_ob
     single_im_a = [0] * N_ob
@@ -103,6 +98,7 @@ def correct_comparison(h, a, b):
         
  
 def write_txt(list_of_lists, filename):
+    # Записывает лист в txt файл
     str_list = []
     for i in list_of_lists:
         if i != 0:
@@ -114,6 +110,7 @@ def write_txt(list_of_lists, filename):
         file.close()
         
 def conv_x(old):
+    # Переводит координату х в новую систему координат
     old_min = new_min = 0
     old_range = 100 - 0  
     new_range = 1920 - 0 # 1920 - 0
@@ -122,6 +119,7 @@ def conv_x(old):
     return converted
 
 def conv_y(old):
+    # Переводит координату у в новую систему координат
     old_min = new_min = 0
     old_range = 100 - 0  
     new_range = 1080 - 0 # 1080 - 0
@@ -130,6 +128,7 @@ def conv_y(old):
     return converted
         
 def join_keypoints(head, abdomen):
+    # Соединяет ключевые точки головы и брюшка в одну запись
     single_im_k = []
     for j in range(len(head)):
         if abdomen[j] != 0:
@@ -142,7 +141,7 @@ def join_keypoints(head, abdomen):
     return single_im_k
     
  
-def create_dataset(root_path, json_path):
+def create_dataset(root_path, json_path): # Не рабочая функция
     keypoints_path = root_path + '/keypoints'
     bboxes_path = root_path + '/bboxes'
     dir_size = len(glob.glob(root_path + '/images' + '/*'))

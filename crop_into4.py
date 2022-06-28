@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import shutil
 
 def read_boxes(bbox_path):
+    # Считывает боксы
     bboxes_original = []
     with open(bbox_path) as f:
         for i in f:
@@ -17,6 +18,7 @@ def read_boxes(bbox_path):
      
      
 def write_bbox(bbox, filename):
+    # Записывает список координат в файл
     str_list = []
     for i in bbox:
         s = ' '.join(map(str, i)) + "\n"
@@ -27,6 +29,7 @@ def write_bbox(bbox, filename):
         
      
 def resize_bboxes(bboxes, left_x, left_y, right_x, right_y):
+    # Изменяет размеры боксов
     new_list_bboxes = []
     k = 0
     for i in bboxes:
@@ -40,6 +43,7 @@ def resize_bboxes(bboxes, left_x, left_y, right_x, right_y):
 
 
 def resize_keypoints(kp, left_x, left_y, right_x, right_y):
+    # Изменяет размеры ключевых точек
     new_list_kp = []
     k = 0
     for i in kp:
@@ -53,6 +57,7 @@ def resize_keypoints(kp, left_x, left_y, right_x, right_y):
 
 
 def crop_one_im(img):
+    # Возвращает 4 куска изображения и границы разреза
     crop_w = 0
     crop_h = 0
     # start vertical devide image
@@ -108,6 +113,7 @@ def crop_one_im(img):
     
 
 def verification(bboxes, kp, l1, l2, r1, r2, crop_w, crop_h, save_path, count):
+    # Выполняет проверку, что боксы не пересекают линии разреза, сохранение в случе успешной проверки
     flag_l1 = True
     flag_l2 = True
     flag_r1 = True
@@ -168,10 +174,8 @@ def verification(bboxes, kp, l1, l2, r1, r2, crop_w, crop_h, save_path, count):
 
     
 def crop_data(root_path):
-    
-    # Prepare folder for crop images
+    # Создает директории, основная процедура
     save_p = root_path + '/1to4'
-        
         
     new_keypoints_path = save_p + '/keypoints'
     new_bboxes_path = save_p + '/bboxes'
