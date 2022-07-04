@@ -41,7 +41,7 @@ def ver(bboxes, kp, l1, l2, r1, r2, crop_w, crop_h):
         return True
 
 
-def get_out_kp_bb(out, left_x, left_y, keypoints, bboxes):
+def get_out_kp_bb(out, left_x, left_y, keypoints, bboxes, nms_threshold, iou_threshold):
     # Функция для маштабирования предказанных координат на новый диапазон
     scores = out[0]['scores'].detach().cpu().numpy()
     high_scores_idxs = np.where(scores > nms_threshold)[0].tolist() # Indexes of boxes with scores > 0.7
@@ -90,10 +90,10 @@ def test_one_from4(im_path, model, flag, nms_threshold, iou_threshold):
             out_r1 = model([F.to_tensor(cv2.cvtColor(right_1, cv2.COLOR_BGR2RGB))])
             out_r2 = model([F.to_tensor(cv2.cvtColor(right_2, cv2.COLOR_BGR2RGB))])
     
-        kp_l1, bb_l1 = get_out_kp_bb(out_l1, 0, 0, [], [])
-        kp_l2, bb_l2 = get_out_kp_bb(out_l2, 0, c_h, kp_l1, bb_l1)
-        kp_r1, bb_r1 = get_out_kp_bb(out_r1, c_w, 0, kp_l2, bb_l2)
-        kp_r2, bb_r2 = get_out_kp_bb(out_r2, c_w, c_h, kp_r1, bb_r1)
+        kp_l1, bb_l1 = get_out_kp_bb(out_l1, 0, 0, [], [], nms_threshold, iou_threshold)
+        kp_l2, bb_l2 = get_out_kp_bb(out_l2, 0, c_h, kp_l1, bb_l1, nms_threshold, iou_threshold)
+        kp_r1, bb_r1 = get_out_kp_bb(out_r1, c_w, 0, kp_l2, bb_l2, nms_threshold, iou_threshold)
+        kp_r2, bb_r2 = get_out_kp_bb(out_r2, c_w, c_h, kp_r1, bb_r1, nms_threshold, iou_threshold)
          
         # Визуализация и предсказаний, и таргетов 
         if flag:
@@ -175,6 +175,7 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
     fontsize = 12
     keypoints_classes_ids2names = {0: 'A', 1: 'H'}
     for bbox in bboxes:
+        print(bbox)
         start_point = (bbox[0], bbox[1])
         end_point = (bbox[2], bbox[3])
         image = cv2.rectangle(image.copy(), start_point, end_point, (255,0,0), 2)
@@ -296,7 +297,7 @@ if __name__ == '__main__':
     parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/rcnn_models/20220628-124306/best_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('draw_targets', nargs='?', default=True, help="True - will draw targets, False - will not", type=bool)
     parser.add_argument('nms_threshold', nargs='?', default=0.5, help="Non maximum supression threshold for boxes", type=float)
-    parser.add_argument('iou_threshold', nargs='?', default=0.3, help="IOU threshold for boxes", type=float)
+    parser.add_argument('iou_threshold', nargs='?', default=0.2, help="IOU threshold for boxes", type=float)
     
     args = parser.parse_args()
     test_data_path = args.test_data_path
