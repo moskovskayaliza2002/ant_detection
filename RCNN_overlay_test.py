@@ -112,22 +112,26 @@ def iou_filter(kp_l1, bb_l1, kp_l2, bb_l2, kp_r1, bb_r1, kp_r2, bb_r2, c_w, c_h,
     return(sel_all_b, sel_all_kp)
         
     
-def one_image_test(im_path, model, flag, nms_threshold, iou_threshold, delta_w, delta_h):
+def one_image_test(im_path, model, flag, nms_threshold, iou_threshold, delta_w, delta_h, show_flag = True):
     #Функция показывающая предсказывания модели на отдельном изображении (Для модели, что делит на 4 исходное изображение)
-    
-    img = cv2.imread(im_path, cv2.IMREAD_UNCHANGED)
+    if im_path[-3:] == 'png':
+        img = cv2.imread(im_path, cv2.IMREAD_UNCHANGED)
+    else:
+        img = im_path
     orig_bb = []
     orig_kp = []
     #Получаем настоящие координаты для целого изображения
-    number = im_path[im_path.rfind('e') + 1 : im_path.rfind('.')]
-    im_root = im_path[:im_path.rfind('/')]
-    test_root = im_root[:im_root.rfind('/') + 1]
-    b_path = test_root + 'bboxes/bbox' + number + '.txt'
-    orig_bb = read_boxes(b_path)
-    k_path = test_root + 'keypoints/keypoint' + number + '.txt'
-    kp = read_boxes(k_path)
-    for i in kp:
-        orig_kp.append([[i[0], i[1]], [i[2], i[3]]])
+    if flag:
+        number = im_path[im_path.rfind('e') + 1 : im_path.rfind('.')]
+        im_root = im_path[:im_path.rfind('/')]
+        test_root = im_root[:im_root.rfind('/') + 1]
+        b_path = test_root + 'bboxes/bbox' + number + '.txt'
+        orig_bb = read_boxes(b_path)
+        k_path = test_root + 'keypoints/keypoint' + number + '.txt'
+        kp = read_boxes(k_path)
+        for i in kp:
+            orig_kp.append([[i[0], i[1]], [i[2], i[3]]])
+            
     #Разрезаем изображение на 4    
     left_1, left_2, right_1, right_2, c_w, c_h = crop_one_im(img, delta_w, delta_h)
     
@@ -147,10 +151,10 @@ def one_image_test(im_path, model, flag, nms_threshold, iou_threshold, delta_w, 
     pred_b, pred_kp = iou_filter(kp_l1, bb_l1, kp_l2, bb_l2, kp_r1, bb_r1, kp_r2, bb_r2, c_w, c_h, delta_w, delta_h)
     #Визуализация и таргетов, и предсказаний    
     if flag:
-        visualize(img, pred_b, pred_kp, img, orig_bb, orig_kp)
+        visualize(img, pred_b, pred_kp, img, orig_bb, orig_kp, show_flag)
     #Визуализация только предсказаний
     else:
-        visualize(img, pred_b, pred_kp)
+        visualize(img, pred_b, pred_kp, show_flag)
         
 
 def batch_test(root, model, flag, nms_threshold, iou_threshold, delta_w, delta_h):
@@ -162,7 +166,7 @@ def batch_test(root, model, flag, nms_threshold, iou_threshold, delta_w, delta_h
         if f.is_file() and f.path.split('.')[-1].lower() == 'png':
             print(f'Изображение №{counter} из {dir_size}')
             image_path = f.path
-            one_image_test(image_path, model, flag, nms_threshold, iou_threshold, delta_w, delta_h)
+            one_image_test(None, image_path, model, flag, nms_threshold, iou_threshold, delta_w, delta_h)
             counter += 1
     
 

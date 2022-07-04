@@ -170,7 +170,7 @@ def test_batch_from4(model, root, flag, nms_threshold, iou_threshold):
                 print(f"Изображение {f.path} не подходит")
  
 
-def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=None, keypoints_original=None):
+def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=None, keypoints_original=None, show_flag = True):
     # Рисует на изображении предсказанные и настоящие боксы и ключевые точки.
     fontsize = 12
     keypoints_classes_ids2names = {0: 'A', 1: 'H'}
@@ -185,9 +185,12 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
             image = cv2.circle(image.copy(), tuple(kp), 2, (255,0,0), 10)
             image = cv2.putText(image.copy(), " " + keypoints_classes_ids2names[idx], tuple(kp), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 1, cv2.LINE_AA)
     if image_original is None and keypoints_original is None:
-        plt.figure(figsize=(40,40))
-        plt.imshow(image)
-        plt.show(block=True)
+        if show_flag:
+            plt.figure(figsize=(40,40))
+            plt.imshow(image)
+            plt.show(block=True)
+        else:
+            return image
 
     else:
         for bbox in bboxes_original:
@@ -199,15 +202,18 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
             for idx, kp in enumerate(kps):
                 image_original = cv2.circle(image_original, tuple(kp), 2, (0,255,0), 10)
                 image_original = cv2.putText(image_original, " " + keypoints_classes_ids2names[idx], tuple(kp), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
+                
+        if show_flag:
+            f, ax = plt.subplots(1, 2, figsize=(40, 20))
 
-        f, ax = plt.subplots(1, 2, figsize=(40, 20))
+            ax[0].imshow(image_original)
+            ax[0].set_title('Original image', fontsize=fontsize)
 
-        ax[0].imshow(image_original)
-        ax[0].set_title('Original image', fontsize=fontsize)
-
-        ax[1].imshow(image)
-        ax[1].set_title('Transformed image', fontsize=fontsize)
-        plt.show(block=True)
+            ax[1].imshow(image)
+            ax[1].set_title('Transformed image', fontsize=fontsize)
+            plt.show(block=True)
+        else:
+            image, image_original
 
  
 def visualizate_predictions(model, data_loader_test, nms_threshold, iou_threshold):
