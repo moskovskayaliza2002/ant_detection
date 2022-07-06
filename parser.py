@@ -4,7 +4,6 @@ import glob
 import os
 import shutil
 import argparse
-import numpy as np
 
 def read_json(root_path, path, max_obj = 20):
     # Основная функция, перебирает все изображения и сохраняет измененные на новый диапазон координаты боксов и ключевых точек в формат, для считывания модели.

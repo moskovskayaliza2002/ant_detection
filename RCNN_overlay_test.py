@@ -38,6 +38,23 @@ def chose_right_bbox(bbox, keypoints):
             new_kp.append(keypoints[i])
     return new_bb, new_kp
             
+
+def show_video(path):
+    #Показ видео
+    cap = cv2.VideoCapture(path)
+    if (cap.isOpened()== False):
+        print("Error opening video stream or file")
+    while(cap.isOpened()):
+        ret, frame = cap.read()
+        if ret == True:
+            cv2.imshow('Frame',frame)
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                break
+        else:
+            break
+    cap.release()
+    cv2.destroyAllWindows()
+    
     
 def selection(boxA, boxB, kpA, kpB, treshould = 0.75):
     #Функция, фильтрующая накладывающиеся боксы одного объекта разных частей изображения
@@ -62,7 +79,8 @@ def selection(boxA, boxB, kpA, kpB, treshould = 0.75):
         while max(map(max, iou_matrix)) >= treshould:
             for i in range(len(boxA)):
                 for j in range(len(boxB)):
-                    if iou_matrix[i][j] == max(map(max, iou_matrix)):
+                    if iou_matrix[i][j] == max(map(max, iou_matrix)) and iou_matrix[i][j] >= treshould:
+                        print(f'iou: {iou_matrix[i][j]}, \nboxA[i]: {boxA[i]}, \nboxB[j]: {boxB[j]}')
                         #Удаляем совпадающие боксы и заменяем их средним значением
                         xmin = int((boxA[i][0] + boxB[j][0]) / 2)
                         ymin = int((boxA[i][1] + boxB[j][1]) / 2)
@@ -87,16 +105,29 @@ def selection(boxA, boxB, kpA, kpB, treshould = 0.75):
         new_boxB, new_kpB = chose_right_bbox(boxB, kpB)
         new_boxA, new_kpA = chose_right_bbox(boxA, kpA)
         
-        bb = np.vstack([np.array(new_boxA), np.array(new_boxB)]) 
-        kp = np.vstack([np.array(new_kpA), np.array(new_kpB)]) 
+        if len(new_boxB) == 0 and len(new_boxA) == 0:
+            bb = []
+            kp = []
+        elif len(new_boxB) == 0:
+            bb = new_boxA
+            kp = new_kpA
+        elif len(new_boxA) == 0:
+            bb = new_boxA
+            kp = new_kpA
+        else:
+            bb = np.vstack([np.array(new_boxA), np.array(new_boxB)]) 
+            kp = np.vstack([np.array(new_kpA), np.array(new_kpB)]) 
         
         #Объединяем с новыми и несовпадающими боксами
         if len(mean_bb) != 0:
-            bb = np.vstack([bb, np.array(mean_bb)]) 
-            kp = np.vstack([kp, np.array(mean_kp)]) 
+            if len(bb) == 0:
+                bb = mean_bb
+                kp = mean_kp
+            else:
+                bb = np.vstack([bb, np.array(mean_bb)]) 
+                kp = np.vstack([kp, np.array(mean_kp)]) 
         
         return bb.tolist(), kp.tolist()
-    
     
     
 def iou_filter(kp_l1, bb_l1, kp_l2, bb_l2, kp_r1, bb_r1, kp_r2, bb_r2, c_w, c_h, delta_w, delta_h):
@@ -112,12 +143,13 @@ def iou_filter(kp_l1, bb_l1, kp_l2, bb_l2, kp_r1, bb_r1, kp_r2, bb_r2, c_w, c_h,
     return(sel_all_b, sel_all_kp)
         
     
-def one_image_test(im_path, model, flag, nms_threshold, iou_threshold, delta_w, delta_h, show_flag = True):
+def one_image_test(im_path, model, device, flag, nms_threshold, iou_threshold, delta_w, delta_h, show_flag = True):
     #Функция показывающая предсказывания модели на отдельном изображении (Для модели, что делит на 4 исходное изображение)
-    if im_path[-3:] == 'png':
+    if type(im_path) == str:
         img = cv2.imread(im_path, cv2.IMREAD_UNCHANGED)
     else:
         img = im_path
+        
     orig_bb = []
     orig_kp = []
     #Получаем настоящие координаты для целого изображения
@@ -154,10 +186,14 @@ def one_image_test(im_path, model, flag, nms_threshold, iou_threshold, delta_w, 
         visualize(img, pred_b, pred_kp, img, orig_bb, orig_kp, show_flag)
     #Визуализация только предсказаний
     else:
-        visualize(img, pred_b, pred_kp, show_flag)
+        if not show_flag:
+            pr_im = visualize(img, pred_b, pred_kp, show_flag = show_flag)
+            return pr_im
+        else:
+            visualize(img, pred_b, pred_kp, show_flag = show_flag)
         
 
-def batch_test(root, model, flag, nms_threshold, iou_threshold, delta_w, delta_h):
+def batch_test(root, model, device, flag, nms_threshold, iou_threshold, delta_w, delta_h, show_flag = True):
     #Функция показывающая предсказывания модели на пакете изображений (Для модели, что делит на 4 исходное изображение
     image_data_path = root + '/images'
     dir_size = len(glob.glob(image_data_path + '/*'))
@@ -166,14 +202,62 @@ def batch_test(root, model, flag, nms_threshold, iou_threshold, delta_w, delta_h
         if f.is_file() and f.path.split('.')[-1].lower() == 'png':
             print(f'Изображение №{counter} из {dir_size}')
             image_path = f.path
-            one_image_test(None, image_path, model, flag, nms_threshold, iou_threshold, delta_w, delta_h)
+            one_image_test(image_path, model, device, flag, nms_threshold, iou_threshold, delta_w, delta_h, show_flag)
             counter += 1
     
 
+def full_video(filename, model, device, targets, nms_threshold, iou_threshold, delta_w, delta_h):
+    #Тестироване модели на видеофайле
+    cap = cv2.VideoCapture(filename)
+    targets = False
+    #Подготовка файла записи
+    new_filename = filename[:filename.rfind('/')] + '/predicted.mp4'
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+    h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    size = (int(w), int(h))
+    out = cv2.VideoWriter(new_filename, fourcc, fps, size, True)
+    #Открываем файл
+    while not cap.isOpened():
+        cap = cv2.VideoCapture(filename)
+        cv2.waitKey(1000)
+        print("Openning the file...")
+
+    pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
+    maxim_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+    
+    while True:
+        flag, frame = cap.read()
+        if flag:
+            #Получаем кадр, рисуем на нем предсказания и записываем в видеоряд
+            pred_im = one_image_test(frame, model, device, targets, nms_threshold, iou_threshold, delta_w, delta_h, False)
+            out.write(pred_im)
+            pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
+            print(f'{pos_frame} frame from {maxim_frames}')
+        else:
+            #Читаем заново, если следующий кадр не готов
+            cap.set(cv2.CAP_PROP_POS_FRAMES, pos_frame-1)
+            print("frame is not ready")
+            #Делаем задержку,чтобы следующий кадр только прочитался
+            cv2.waitKey(1000)
+
+        if cv2.waitKey(10) == 27:
+            break
+        if cap.get(cv2.CAP_PROP_POS_FRAMES) == cap.get(cv2.CAP_PROP_FRAME_COUNT):
+            #Если прочитали все кадры - выходим из цикла
+            break
+        
+    out.release()
+    cap.release()
+    cv2.destroyAllWindows()
+    
+    show_video(new_filename)
 if __name__ == '__main__':       
     parser = argparse.ArgumentParser()
-    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA/images/0a302e52-image202.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/videos/inputs/short.mp4', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/rcnn_models/20220628-124306/best_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('draw_targets', nargs='?', default=True, help="True - will draw targets, False - will not", type=bool)
     parser.add_argument('nms_threshold', nargs='?', default=0.5, help="Non maximum supression threshold for boxes", type=float)
@@ -194,6 +278,9 @@ if __name__ == '__main__':
     test_model = get_model(2, model_path)
     
     if test_data_path[-3:] == 'png':
-        one_image_test(test_data_path, test_model, draw_targets, nms_threshold, iou_threshold, overlay_w, overlay_h)
+        one_image_test(test_data_path, test_model, device, draw_targets, nms_threshold, iou_threshold, overlay_w, overlay_h)
+    elif test_data_path[-3:] == 'mp4':
+        draw_targets = False
+        full_video(test_data_path, test_model, device, draw_targets, nms_threshold, iou_threshold, overlay_w, overlay_h)
     else:
-        batch_test(test_data_path, test_model, draw_targets, nms_threshold, iou_threshold, overlay_w, overlay_h)
+        batch_test(test_data_path, test_model, device, draw_targets, nms_threshold, iou_threshold, overlay_w, overlay_h)

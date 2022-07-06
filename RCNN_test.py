@@ -175,7 +175,6 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
     fontsize = 12
     keypoints_classes_ids2names = {0: 'A', 1: 'H'}
     for bbox in bboxes:
-        print(bbox)
         start_point = (bbox[0], bbox[1])
         end_point = (bbox[2], bbox[3])
         image = cv2.rectangle(image.copy(), start_point, end_point, (255,0,0), 2)
@@ -203,17 +202,14 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
                 image_original = cv2.circle(image_original, tuple(kp), 2, (0,255,0), 10)
                 image_original = cv2.putText(image_original, " " + keypoints_classes_ids2names[idx], tuple(kp), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
                 
-        if show_flag:
-            f, ax = plt.subplots(1, 2, figsize=(40, 20))
+        f, ax = plt.subplots(1, 2, figsize=(40, 20))
 
-            ax[0].imshow(image_original)
-            ax[0].set_title('Original image', fontsize=fontsize)
+        ax[0].imshow(image_original)
+        ax[0].set_title('Original annotations', fontsize=fontsize)
 
-            ax[1].imshow(image)
-            ax[1].set_title('Transformed image', fontsize=fontsize)
-            plt.show(block=True)
-        else:
-            image, image_original
+        ax[1].imshow(image)
+        ax[1].set_title('Predicted annotations', fontsize=fontsize)
+        plt.show(block=True)
 
  
 def visualizate_predictions(model, data_loader_test, nms_threshold, iou_threshold):

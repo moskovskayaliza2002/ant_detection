@@ -179,8 +179,8 @@ def train_rcnn(num_epochs, root):
     
     #KEYPOINTS_FOLDER_TEST = root + '/test_data'
     #KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
-    KEYPOINTS_FOLDER_TEST = root + '/TEST_on_real'
-    KEYPOINTS_FOLDER_TRAIN = root + '/1to4'
+    KEYPOINTS_FOLDER_TEST = root + '/Test_while_train_data'
+    KEYPOINTS_FOLDER_TRAIN = root + '/Train_data'
     SAVING_WEIGHTS_PATH = root + '/rcnn_models/'
     
     if not os.path.exists(SAVING_WEIGHTS_PATH):
@@ -249,37 +249,10 @@ def train_rcnn(num_epochs, root):
     torch.save(model.state_dict(), SAVING_WEIGHTS_PATH + '/full_weights.pth')
     return model, SAVING_WEIGHTS_PATH
 
-
-def visualizate_predictions(model, data_loader_test):
-    iterator = iter(data_loader_test)
-    images, targets = next(iterator)
-    images = list(image.to(device) for image in images)
-
-    with torch.no_grad():
-        model.to(device)
-        model.eval()
-        output = model(images)
-        
-    image = (images[0].permute(1,2,0).detach().cpu().numpy() * 255).astype(np.uint8)
-    scores = output[0]['scores'].detach().cpu().numpy()
-
-    high_scores_idxs = np.where(scores > 0.7)[0].tolist() # Indexes of boxes with scores > 0.7
-    post_nms_idxs = torchvision.ops.nms(output[0]['boxes'][high_scores_idxs], output[0]['scores'][high_scores_idxs], 0.3).cpu().numpy() # Indexes of boxes left after applying NMS (iou_threshold=0.3)
-
-    keypoints = []
-    for kps in output[0]['keypoints'][high_scores_idxs][post_nms_idxs].detach().cpu().numpy():
-        keypoints.append([list(map(int, kp[:2])) for kp in kps])
-
-    bboxes = []
-    for bbox in output[0]['boxes'][high_scores_idxs][post_nms_idxs].detach().cpu().numpy():
-        bboxes.append(list(map(int, bbox.tolist())))
-    
-    visualize(image, bboxes, keypoints)
-    
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
+    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay', help="Specify main directory", type=str)
     parser.add_argument('num_epoch', nargs='?', default=4, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
@@ -288,14 +261,3 @@ if __name__ == '__main__':
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
     model, weights_path = train_rcnn(num_epoch, root_path)
-    
-    #KEYPOINTS_FOLDER_TEST = root_path + '/test_data'
-    #dataset = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
-    #data_loader = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
-
-    #iterator = iter(data_loader)
-    #batch = next(iterator)
-    
-    #test_model = get_model(2, weights_path + '/best_weights.pth')
-
-    #visualizate_predictions(test_model, data_loader)
