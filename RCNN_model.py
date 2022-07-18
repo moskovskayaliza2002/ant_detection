@@ -253,11 +253,26 @@ def train_rcnn(num_epochs, root):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=4, help="Specify number of epoch", type=int)
+    parser.add_argument('num_epoch', nargs='?', default=10, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path
     num_epoch = args.num_epoch
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    
+    
+    # how to install and use cuda https://www.geeksforgeeks.org/how-to-set-up-and-run-cuda-operations-in-pytorch/
+    # pytorch cuda installation https://pytorch.org/
+    
+    if torch.cuda.is_available():
+        print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
+        print(f"CUDA version: {torch.version.cuda}")
+    
+        cuda_id = torch.cuda.current_device()
+        print(f"ID of current CUDA device: {torch.cuda.current_device()}")
+            
+        print(f"Name of current CUDA device: {torch.cuda.get_device_name(cuda_id)}")
+    else:
+        print('cuda is not available')
     
     model, weights_path = train_rcnn(num_epoch, root_path)

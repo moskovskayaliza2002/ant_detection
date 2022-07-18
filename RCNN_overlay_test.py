@@ -257,7 +257,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA/images/0a302e52-image202.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/videos/inputs/short.mp4', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/videos/inputs/cut40s.mp4', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/rcnn_models/20220628-124306/best_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('draw_targets', nargs='?', default=True, help="True - will draw targets, False - will not", type=bool)
     parser.add_argument('nms_threshold', nargs='?', default=0.5, help="Non maximum supression threshold for boxes", type=float)
@@ -279,7 +279,7 @@ if __name__ == '__main__':
     
     if test_data_path[-3:] == 'png':
         one_image_test(test_data_path, test_model, device, draw_targets, nms_threshold, iou_threshold, overlay_w, overlay_h)
-    elif test_data_path[-3:] == 'mp4':
+    elif test_data_path[-3:] == 'mp4' or test_data_path[-3:] == 'MOV':
         draw_targets = False
         full_video(test_data_path, test_model, device, draw_targets, nms_threshold, iou_threshold, overlay_w, overlay_h)
     else:
