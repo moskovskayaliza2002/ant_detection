@@ -275,6 +275,12 @@ if __name__ == '__main__':
     overlay_h = args.overlay_h
     
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    
+    if torch.cuda.is_available():
+        print('*****************************DEVICE: GPU*****************************')
+    else:
+        print('*****************************DEVICE: CPU*****************************')
+        
     test_model = get_model(2, model_path)
     
     if test_data_path[-3:] == 'png':

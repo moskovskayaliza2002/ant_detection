@@ -11,6 +11,7 @@ from utils import collate_fn
 import torchvision
 import argparse
 
+# the following instructions https://medium.com/@alexppppp/how-to-train-a-custom-keypoint-detection-model-with-pytorch-d9af90e111da
 
 def train_transform():
     return A.Compose([
@@ -265,6 +266,7 @@ if __name__ == '__main__':
     # pytorch cuda installation https://pytorch.org/
     
     if torch.cuda.is_available():
+        print('*****************************DEVICE: GPU*****************************')
         print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
         print(f"CUDA version: {torch.version.cuda}")
     
@@ -273,6 +275,6 @@ if __name__ == '__main__':
             
         print(f"Name of current CUDA device: {torch.cuda.get_device_name(cuda_id)}")
     else:
-        print('cuda is not available')
+        print('*****************************DEVICE: CPU*****************************')
     
     model, weights_path = train_rcnn(num_epoch, root_path)
