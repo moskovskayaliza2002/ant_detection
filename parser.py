@@ -4,6 +4,7 @@ import glob
 import os
 import shutil
 import argparse
+import time
 
 def read_json(root_path, path, max_obj = 20):
     # Основная функция, перебирает все изображения и сохраняет измененные на новый диапазон координаты боксов и ключевых точек в формат, для считывания модели.
@@ -59,18 +60,68 @@ def read_json(root_path, path, max_obj = 20):
         
         
         # ТУТ СОПОСТАВЛЕНИЕ И СОХРАНЕНИЕ ПО ИМЕНИ ИЗОБРАЖЕНИЯ + объединение
-        compared_h, compared_a, _ = correct_comparison(single_head_list, single_abdomen_list, single_bboxes_list)
-        single_keypoints_list = join_keypoints(compared_h, compared_a)
-        bb_filename = bboxes_path + '/bbox' + str(number) + '.txt'
-        write_txt(single_bboxes_list, bb_filename)
-        k_filename = keypoints_path + '/keypoint' + str(number) + '.txt'
-        write_txt(single_keypoints_list, k_filename)
-        print(f'№ {number}, ants: {np.count_nonzero(single_bboxes_list)}')
-        #bboxes_list.append(single_bboxes_list)
+        if separator(single_head_list, single_bboxes_list) and separator(single_abdomen_list, single_bboxes_list):
+            print('вырубай')
+            compared_h, compared_a, _ = correct_comparison(single_head_list, single_abdomen_list, single_bboxes_list)
+            single_keypoints_list = join_keypoints(compared_h, compared_a)
+            bb_filename = bboxes_path + '/bbox' + str(number) + '.txt'
+            write_txt(single_bboxes_list, bb_filename)
+            k_filename = keypoints_path + '/keypoint' + str(number) + '.txt'
+            write_txt(single_keypoints_list, k_filename)
+            print(f'№ {number}, ants: {np.count_nonzero(single_bboxes_list)}')
+        else:
+            print(f"Skipped {img['img']}")
     
     return 0
 
-
+def separator(h, b):
+    #Функция, что ищет ключевые точки, попадающие в несколько боксов.
+    d_h = {}
+    N_ob = len(h)
+    single_im_h = [0] * N_ob
+    for j in range(N_ob):
+        if b[j] == 0:
+            break
+        else:
+            xmin, ymin, xmax, ymax = b[j][0], b[j][1], b[j][2], b[j][3]
+            all_head_in = []
+            for g in range(N_ob):
+                if h[g] != 0:
+                    x_h, y_h = h[g][0], h[g][1]
+                    if (xmin < x_h < xmax) and (ymin < y_h < ymax):
+                        #single_im_h[j] = [x_h, y_h]
+                        all_head_in.append([x_h, y_h])
+            if len(all_head_in) == 1:
+                single_im_h[j] = all_head_in[0]
+            else:
+                d_h[j] = all_head_in
+    #print(d_h)
+    keys = d_h.keys()
+    for key in keys:
+        if type(d_h[key]) != float:
+            arr = d_h[key]
+            for val in d_h[key]:
+                if val in single_im_h:
+                    arr.remove(val)
+                    d_h[key] = arr
+                    #print(type(arr[0] != float) and len(arr[0]) == 1)
+                    if type(arr[0] != float) and len(arr) == 1:
+                        d_h[key] = arr[0]
+                        single_im_h[key] = arr[0]
+    values = d_h.values()
+    #print(values)
+    #print(d_h[0])
+    print(d_h)
+    exit_flag = False
+    if d_h == {}:
+        return True
+    else:
+        for key in keys:
+            arr = d_h[key]
+            exit_flag = type(arr[0]) == float
+        return exit_flag
+        
+    
 def correct_comparison(h, a, b):
     # Подбирает ключевые точки под соответствующие боксы
     N_ob = len(h)
@@ -166,8 +217,8 @@ def create_dataset(root_path, json_path): # Не рабочая функция
 if __name__ == '__main__':
     #root_path - is a forder, where folger with images and a json file with annotation lies. it will create there two folders for bboxes amd keypoints txt files.
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/TRAIN_on_real', help="Specify directory to create dataset", type=str)
-    parser.add_argument('json_path', nargs='?', default='/home/ubuntu/ant_detection/TRAIN_on_real/new.json', help="Specify path to json file", type=str)
+    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/testing_n_p', help="Specify directory to create dataset", type=str)
+    parser.add_argument('json_path', nargs='?', default='/home/ubuntu/ant_detection/testing_n_p/test.json', help="Specify path to json file", type=str)
     args = parser.parse_args()
     ROOT = args.root_path
     JSON = args.json_path
