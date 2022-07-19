@@ -61,7 +61,6 @@ def read_json(root_path, path, max_obj = 20):
         
         # ТУТ СОПОСТАВЛЕНИЕ И СОХРАНЕНИЕ ПО ИМЕНИ ИЗОБРАЖЕНИЯ + объединение
         if separator(single_head_list, single_bboxes_list) and separator(single_abdomen_list, single_bboxes_list):
-            print('вырубай')
             compared_h, compared_a, _ = correct_comparison(single_head_list, single_abdomen_list, single_bboxes_list)
             single_keypoints_list = join_keypoints(compared_h, compared_a)
             bb_filename = bboxes_path + '/bbox' + str(number) + '.txt'
@@ -96,22 +95,25 @@ def separator(h, b):
             else:
                 d_h[j] = all_head_in
     #print(d_h)
-    keys = d_h.keys()
-    for key in keys:
-        if type(d_h[key]) != float:
-            arr = d_h[key]
-            for val in d_h[key]:
-                if val in single_im_h:
-                    arr.remove(val)
-                    d_h[key] = arr
-                    #print(type(arr[0] != float) and len(arr[0]) == 1)
-                    if type(arr[0] != float) and len(arr) == 1:
-                        d_h[key] = arr[0]
-                        single_im_h[key] = arr[0]
-    values = d_h.values()
+    if d_h != {}:
+        keys = d_h.keys()
+        values = d_h.values()
+        repeads = max(len(l) for l in values)
+        for _ in range(repeads):
+            for key in keys:
+                if type(d_h[key]) != float:
+                    arr = d_h[key]
+                    for val in d_h[key]:
+                        if val in single_im_h:
+                            arr.remove(val)
+                            d_h[key] = arr
+                            #print(type(arr[0] != float) and len(arr[0]) == 1)
+                            if type(arr[0] != float) and len(arr) == 1:
+                                d_h[key] = arr[0]
+                                single_im_h[key] = arr[0]
     #print(values)
     #print(d_h[0])
-    print(d_h)
+    #print(d_h)
     exit_flag = False
     if d_h == {}:
         return True
@@ -218,7 +220,7 @@ if __name__ == '__main__':
     #root_path - is a forder, where folger with images and a json file with annotation lies. it will create there two folders for bboxes amd keypoints txt files.
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/testing_n_p', help="Specify directory to create dataset", type=str)
-    parser.add_argument('json_path', nargs='?', default='/home/ubuntu/ant_detection/testing_n_p/test.json', help="Specify path to json file", type=str)
+    parser.add_argument('json_path', nargs='?', default='/home/ubuntu/ant_detection/testing_n_p/test2.json', help="Specify path to json file", type=str)
     args = parser.parse_args()
     ROOT = args.root_path
     JSON = args.json_path
