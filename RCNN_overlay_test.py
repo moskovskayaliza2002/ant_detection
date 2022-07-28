@@ -1,6 +1,5 @@
 import torchvision
 from overlay_intersection import crop_one_im, read_boxes, resize_bboxes_kps 
-from RCNN_test import get_out_kp_bb, visualize, find_bbox, find_kp
 import numpy as np
 import argparse
 from RCNN_model import get_model
@@ -9,8 +8,80 @@ import os
 import glob
 import torch
 from torchvision.transforms import functional as F
+import matplotlib.pyplot as plt
+
+    
+def get_out_kp_bb(out, left_x, left_y, conf_threshold, iou_threshold):
+    # Функция для маштабирования предказанных координат на новый диапазон
+    scores = out[0]['scores'].detach().cpu().numpy()
+    high_scores_idxs = np.where(scores > conf_threshold)[0].tolist() # Indexes of boxes with scores > 0.7
+    post_nms_idxs = torchvision.ops.nms(out[0]['boxes'][high_scores_idxs], out[0]['scores'][high_scores_idxs], iou_threshold).cpu().numpy() # Indexes of boxes left after applying NMS (iou_threshold=0.3)
+    
+    print(high_scores_idxs, post_nms_idxs)
+    
+    my_scores = out[0]['scores'][high_scores_idxs][post_nms_idxs].detach().cpu().numpy()
+    
+    keypoints = []
+    bboxes = []
+    
+    for kps in out[0]['keypoints'][high_scores_idxs][post_nms_idxs].detach().cpu().numpy():
+        int_kps = [list(map(int, kp[:2])) for kp in kps]
+        x_a, y_a = int_kps[0][0], int_kps[0][1]
+        x_h, y_h = int_kps[1][0], int_kps[1][1]
+        keypoints.append([[x_a + left_x, y_a + left_y], [x_h + left_x, y_h + left_y]])
+
+    for bbox in out[0]['boxes'][high_scores_idxs][post_nms_idxs].detach().cpu().numpy():
+        xmin, ymin, xmax, ymax = map(int, bbox.tolist())
+        bboxes.append([xmin + left_x, ymin + left_y, xmax + left_x, ymax + left_y])
+    print(f'bboxes {bboxes}, keypoints {keypoints}, my_scores {my_scores}')
+    
+    return keypoints, bboxes, my_scores
 
 
+def visualize(image, bboxes, keypoints, scores, image_original=None, bboxes_original=None, keypoints_original=None, show_flag = True):
+    # Рисует на изображении предсказанные и настоящие боксы и ключевые точки.
+    fontsize = 12
+    keypoints_classes_ids2names = {0: 'A', 1: 'H'}
+    for idx, bbox in enumerate(bboxes):
+        start_point = (bbox[0], bbox[1])
+        end_point = (bbox[2], bbox[3])
+        image = cv2.rectangle(image.copy(), start_point, end_point, (255,0,0), 2)
+        org = (bbox[0], bbox[1])
+        image = cv2.putText(image.copy(), " " + str(round(scores[idx], 2)), org , cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
+    
+    for kps in keypoints:
+        for idx, kp in enumerate(kps):
+            image = cv2.circle(image.copy(), tuple(kp), 2, (255,0,0), 10)
+            image = cv2.putText(image.copy(), " " + keypoints_classes_ids2names[idx], tuple(kp), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 1, cv2.LINE_AA)
+    if image_original is None and keypoints_original is None:
+        if show_flag:
+            plt.figure(figsize=(40,40))
+            plt.imshow(image)
+            plt.show(block=True)
+        else:
+            return image
+
+    else:
+        for bbox in bboxes_original:
+            start_point = (bbox[0], bbox[1])
+            end_point = (bbox[2], bbox[3])
+            image_original = cv2.rectangle(image_original.copy(), start_point, end_point, (0,255,0), 2)
+        
+        for kps in keypoints_original:
+            for idx, kp in enumerate(kps):
+                image_original = cv2.circle(image_original, tuple(kp), 2, (0,255,0), 10)
+                image_original = cv2.putText(image_original, " " + keypoints_classes_ids2names[idx], tuple(kp), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
+                
+        f, ax = plt.subplots(1, 2, figsize=(40, 20))
+
+        ax[0].imshow(image_original)
+        ax[0].set_title('Original annotations', fontsize=fontsize)
+
+        ax[1].imshow(image)
+        ax[1].set_title('Predicted annotations', fontsize=fontsize)
+        plt.show(block=True)
+        
+        
 def intersection_over_union(boxA, boxB):
     #Считает IoU для двух боксов
     xA = max(boxA[0], boxB[0])
@@ -28,15 +99,17 @@ def intersection_over_union(boxA, boxB):
     return iou  
     
  
-def chose_right_bbox(bbox, keypoints):
+def chose_right_bbox(bbox, keypoints, scores):
     #Отбор не совпадающих с другим изображением боксов
     new_bb = []
     new_kp = []
+    new_scores = []
     for i in range(len(bbox)):
         if type(bbox[i]) != int:
             new_bb.append(bbox[i])
             new_kp.append(keypoints[i])
-    return new_bb, new_kp
+            new_scores.append(scores[i])
+    return new_bb, new_kp, new_scores
             
 
 def show_video(path):
@@ -56,15 +129,15 @@ def show_video(path):
     cv2.destroyAllWindows()
     
     
-def selection(boxA, boxB, kpA, kpB, treshould = 0.75):
+def selection(boxA, boxB, kpA, kpB, scA, scB, nms_threshold):
     #Функция, фильтрующая накладывающиеся боксы одного объекта разных частей изображения
     if len(boxA) == 0 or len(boxB) == 0:
-        if len(boxA) and len(boxB) == 0:
-            return [], []
+        if len(boxA) == 0 and len(boxB) == 0:
+            return [], [], []
         elif len(boxA) == 0:
-            return boxB, kpB
+            return boxB, kpB, scB
         elif len(boxB) == 0:
-            return boxA, kpA
+            return boxA, kpA, scA
     else:
         #Матрица Джакардова индекса для всех элементов двух частей изображения
         iou_matrix = [[0 for i in range(len(boxB))] for j in range(len(boxA))]
@@ -75,12 +148,13 @@ def selection(boxA, boxB, kpA, kpB, treshould = 0.75):
         
         mean_bb = []
         mean_kp = []
+        mean_sc = []
         
-        while max(map(max, iou_matrix)) >= treshould:
+        while max(map(max, iou_matrix)) >= nms_threshold:
             for i in range(len(boxA)):
                 for j in range(len(boxB)):
-                    if iou_matrix[i][j] == max(map(max, iou_matrix)) and iou_matrix[i][j] >= treshould:
-                        print(f'iou: {iou_matrix[i][j]}, \nboxA[i]: {boxA[i]}, \nboxB[j]: {boxB[j]}')
+                    if iou_matrix[i][j] == max(map(max, iou_matrix)) and iou_matrix[i][j] >= nms_threshold:
+                        #print(f'iou: {iou_matrix[i][j]}, \nboxA[i]: {boxA[i]}, \nboxB[j]: {boxB[j]}')
                         #Удаляем совпадающие боксы и заменяем их средним значением
                         xmin = int((boxA[i][0] + boxB[j][0]) / 2)
                         ymin = int((boxA[i][1] + boxB[j][1]) / 2)
@@ -94,6 +168,8 @@ def selection(boxA, boxB, kpA, kpB, treshould = 0.75):
                         y_h = int((kpA[i][1][1] + kpB[j][1][1]) / 2)
                         mean_kp.append([[x_a, y_a], [x_h, y_h]])
                         
+                        mean_sc.append((scA[i] + scB[j]) / 2)
+                        
                         boxA[i] = -1
                         boxB[j] = -1
                         #"Зануляем" соответствущие элементы в матрице
@@ -102,48 +178,66 @@ def selection(boxA, boxB, kpA, kpB, treshould = 0.75):
                             row[j] = -1
         
         #Отбираем несовпадающие боксы и ключевые точки
-        new_boxB, new_kpB = chose_right_bbox(boxB, kpB)
-        new_boxA, new_kpA = chose_right_bbox(boxA, kpA)
+        #print(f'boxB {boxB}, \nkpB {kpB}')
+        #print(f'boxA {boxA}, \nkpA {kpA}')
+        new_boxB, new_kpB, new_scoresB = chose_right_bbox(boxB, kpB, scB)
+        new_boxA, new_kpA, new_scoresA = chose_right_bbox(boxA, kpA, scA)
+        #print(f'new_boxB {new_boxB}, \nnew_kpB {new_kpB}')
+        bb = []
+        kp = []
+        sc = []
         
         if len(new_boxB) == 0 and len(new_boxA) == 0:
             bb = []
             kp = []
+            sc = []
         elif len(new_boxB) == 0:
             bb = new_boxA
             kp = new_kpA
+            sc = new_scoresA
         elif len(new_boxA) == 0:
-            bb = new_boxA
-            kp = new_kpA
+            bb = new_boxB
+            kp = new_kpB
+            sc = new_scoresB
         else:
             bb = np.vstack([np.array(new_boxA), np.array(new_boxB)]) 
             kp = np.vstack([np.array(new_kpA), np.array(new_kpB)]) 
+            sc = np.hstack([np.array(new_scoresA), np.array(new_scoresB)]) 
         
+        
+        #print(f'bb {bb}, \nkp {kp}')
         #Объединяем с новыми и несовпадающими боксами
         if len(mean_bb) != 0:
             if len(bb) == 0:
                 bb = mean_bb
                 kp = mean_kp
+                sc = mean_sc
             else:
-                bb = np.vstack([bb, np.array(mean_bb)]) 
+                bb = np.vstack([bb, np.array(mean_bb)])
+                bb = bb.tolist()
                 kp = np.vstack([kp, np.array(mean_kp)]) 
+                kp = kp.tolist()
+                sc = np.hstack([sc, np.array(mean_sc)])
+                sc = sc.tolist()
         
-        return bb.tolist(), kp.tolist()
+        #print(f'bb {bb.tolist()}, \nkp {kp.tolist()}')
+        return bb, kp, sc
     
     
-def iou_filter(kp_l1, bb_l1, kp_l2, bb_l2, kp_r1, bb_r1, kp_r2, bb_r2, c_w, c_h, delta_w, delta_h):
+def iou_filter(kp_l1, bb_l1, sc_l1, kp_l2, bb_l2, sc_l2, kp_r1, bb_r1, sc_r1, kp_r2, bb_r2, sc_r2, c_w, c_h, delta_w, delta_h, nms_threshold):
     #Функция, объединяющая предсказанные ключевые точки и боксы
     
     #Объединение двух верхних частей
-    sel_l1_r1_b, sel_l1_r1_kp = selection(bb_l1, bb_r1, kp_l1, kp_r1)
+    sel_l1_r1_b, sel_l1_r1_kp, sel_l1_r1_sc = selection(bb_l1, bb_r1, kp_l1, kp_r1, sc_l1, sc_r1, nms_threshold)
     #Объединение двух нижних частей
-    sel_l2_r2_b, sel_l2_r2_kp = selection(bb_l2, bb_r2, kp_l2, kp_r2)
+    sel_l2_r2_b, sel_l2_r2_kp, sel_l2_r2_sc = selection(bb_l2, bb_r2, kp_l2, kp_r2, sc_l2, sc_r2, nms_threshold)
     #Объединение двух получившихся частей
-    sel_all_b, sel_all_kp = selection(sel_l1_r1_b, sel_l2_r2_b, sel_l1_r1_kp, sel_l2_r2_kp)
+    sel_all_b, sel_all_kp, sel_all_sc = selection(sel_l1_r1_b, sel_l2_r2_b, sel_l1_r1_kp, sel_l2_r2_kp, sel_l1_r1_sc, sel_l2_r2_sc, nms_threshold)
     
-    return(sel_all_b, sel_all_kp)
+    return(sel_all_b, sel_all_kp, sel_all_sc)
         
     
-def one_image_test(im_path, model, device, flag, nms_threshold, iou_threshold, delta_w, delta_h, show_flag = True):
+def one_image_test(im_path, model, device, flag, conf_threshold, nms_threshold, iou_threshold, delta_w, delta_h, show_flag = True):
     #Функция показывающая предсказывания модели на отдельном изображении (Для модели, что делит на 4 исходное изображение)
     if type(im_path) == str:
         img = cv2.imread(im_path, cv2.IMREAD_UNCHANGED)
@@ -170,43 +264,45 @@ def one_image_test(im_path, model, device, flag, nms_threshold, iou_threshold, d
     with torch.no_grad():
         model.to(device)
         model.eval()
-        out_l1 = model([F.to_tensor(cv2.cvtColor(left_1, cv2.COLOR_BGR2RGB))])
-        out_l2 = model([F.to_tensor(cv2.cvtColor(left_2, cv2.COLOR_BGR2RGB))])
-        out_r1 = model([F.to_tensor(cv2.cvtColor(right_1, cv2.COLOR_BGR2RGB))])
-        out_r2 = model([F.to_tensor(cv2.cvtColor(right_2, cv2.COLOR_BGR2RGB))])
+        #data = torch.tensor([left_1, left_2, right_1, right_2])
+        #data = data.to(device)
+        out_l1 = model([F.to_tensor(cv2.cvtColor(left_1, cv2.COLOR_BGR2RGB)).to(device)])
+        out_l2 = model([F.to_tensor(cv2.cvtColor(left_2, cv2.COLOR_BGR2RGB)).to(device)])
+        out_r1 = model([F.to_tensor(cv2.cvtColor(right_1, cv2.COLOR_BGR2RGB)).to(device)])
+        out_r2 = model([F.to_tensor(cv2.cvtColor(right_2, cv2.COLOR_BGR2RGB)).to(device)])
     #Получаем предсказанные значения для каждой из 4 картинок, с пороговыми NMS и IOU        
-    kp_l1, bb_l1 = get_out_kp_bb(out_l1, 0, 0, [], [], nms_threshold, iou_threshold)
-    kp_l2, bb_l2 = get_out_kp_bb(out_l2, 0, c_h - delta_h, [], [], nms_threshold, iou_threshold)
-    kp_r1, bb_r1 = get_out_kp_bb(out_r1, c_w - delta_w, 0, [], [], nms_threshold, iou_threshold)
-    kp_r2, bb_r2 = get_out_kp_bb(out_r2, c_w - delta_w, c_h - delta_h, [], [], nms_threshold, iou_threshold)
+    kp_l1, bb_l1, sc_l1 = get_out_kp_bb(out_l1, 0, 0, conf_threshold, iou_threshold)
+    kp_l2, bb_l2, sc_l2 = get_out_kp_bb(out_l2, 0, c_h - delta_h, conf_threshold, iou_threshold)
+    kp_r1, bb_r1, sc_r1 = get_out_kp_bb(out_r1, c_w - delta_w, 0, conf_threshold, iou_threshold)
+    kp_r2, bb_r2, sc_r2 = get_out_kp_bb(out_r2, c_w - delta_w, c_h - delta_h, conf_threshold, iou_threshold)
     #Объединяем предсказанные значения    
-    pred_b, pred_kp = iou_filter(kp_l1, bb_l1, kp_l2, bb_l2, kp_r1, bb_r1, kp_r2, bb_r2, c_w, c_h, delta_w, delta_h)
+    pred_b, pred_kp, pred_sc = iou_filter(kp_l1, bb_l1, sc_l1, kp_l2, bb_l2, sc_l2, kp_r1, bb_r1, sc_r1, kp_r2, bb_r2, sc_r2, c_w, c_h, delta_w, delta_h, nms_threshold)
     #Визуализация и таргетов, и предсказаний    
     if flag:
-        visualize(img, pred_b, pred_kp, img, orig_bb, orig_kp, show_flag)
+        visualize(img, pred_b, pred_kp, pred_sc, img, orig_bb, orig_kp, show_flag)
     #Визуализация только предсказаний
     else:
         if not show_flag:
-            pr_im = visualize(img, pred_b, pred_kp, show_flag = show_flag)
+            pr_im = visualize(img, pred_b, pred_kp, pred_sc, show_flag = show_flag)
             return pr_im
         else:
-            visualize(img, pred_b, pred_kp, show_flag = show_flag)
+            visualize(img, pred_b, pred_kp, pred_sc, show_flag = show_flag)
         
 
-def batch_test(root, model, device, flag, nms_threshold, iou_threshold, delta_w, delta_h, show_flag = True):
+def batch_test(root, model, device, flag, conf_threshold, iou_threshold, nms_threshold, delta_w, delta_h, show_flag = True):
     #Функция показывающая предсказывания модели на пакете изображений (Для модели, что делит на 4 исходное изображение
     image_data_path = root + '/images'
     dir_size = len(glob.glob(image_data_path + '/*'))
     counter = 0
     for f in os.scandir(image_data_path):
         if f.is_file() and f.path.split('.')[-1].lower() == 'png':
-            print(f'Изображение №{counter} из {dir_size}')
+            print(f'Изображение №{counter + 1} из {dir_size}')
             image_path = f.path
-            one_image_test(image_path, model, device, flag, nms_threshold, iou_threshold, delta_w, delta_h, show_flag)
+            one_image_test(image_path, model, device, flag, conf_threshold, nms_threshold, iou_threshold, delta_w, delta_h, show_flag)
             counter += 1
     
 
-def full_video(filename, model, device, targets, nms_threshold, iou_threshold, delta_w, delta_h):
+def full_video(filename, model, device, targets, conf_threshold, nms_threshold, iou_threshold, delta_w, delta_h):
     #Тестироване модели на видеофайле
     cap = cv2.VideoCapture(filename)
     targets = False
@@ -231,7 +327,7 @@ def full_video(filename, model, device, targets, nms_threshold, iou_threshold, d
         flag, frame = cap.read()
         if flag:
             #Получаем кадр, рисуем на нем предсказания и записываем в видеоряд
-            pred_im = one_image_test(frame, model, device, targets, nms_threshold, iou_threshold, delta_w, delta_h, False)
+            pred_im = one_image_test(frame, model, device, targets, conf_threshold, nms_threshold, iou_threshold, delta_w, delta_h, False)
             out.write(pred_im)
             pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
             print(f'{pos_frame} frame from {maxim_frames}')
@@ -257,10 +353,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA/images/0a302e52-image202.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/videos/inputs/cut40s.mp4', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/rcnn_models/20220628-124306/best_weights.pth', help="Specify weights path", type=str)
+    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/Test_data/images/0bf28388-image31.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/rcnn_models/20220727-170625/best_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('draw_targets', nargs='?', default=True, help="True - will draw targets, False - will not", type=bool)
-    parser.add_argument('nms_threshold', nargs='?', default=0.5, help="Non maximum supression threshold for boxes", type=float)
+    parser.add_argument('conf_threshold', nargs='?', default=0.3, help="Confident threshold for boxes", type=float)
+    parser.add_argument('nms_threshold', nargs='?', default=0.1, help="Non maximum suppression threshold for boxes", type=float)
     parser.add_argument('iou_threshold', nargs='?', default=0.2, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
@@ -269,6 +366,7 @@ if __name__ == '__main__':
     test_data_path = args.test_data_path
     model_path = args.model_path
     draw_targets = args.draw_targets
+    conf_threshold = args.conf_threshold
     nms_threshold = args.nms_threshold
     iou_threshold = args.iou_threshold
     overlay_w = args.overlay_w
@@ -284,9 +382,9 @@ if __name__ == '__main__':
     test_model = get_model(2, model_path)
     
     if test_data_path[-3:] == 'png':
-        one_image_test(test_data_path, test_model, device, draw_targets, nms_threshold, iou_threshold, overlay_w, overlay_h)
+        one_image_test(test_data_path, test_model, device, draw_targets, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h)
     elif test_data_path[-3:] == 'mp4' or test_data_path[-3:] == 'MOV':
         draw_targets = False
-        full_video(test_data_path, test_model, device, draw_targets, nms_threshold, iou_threshold, overlay_w, overlay_h)
+        full_video(test_data_path, test_model, device, draw_targets, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h)
     else:
-        batch_test(test_data_path, test_model, device, draw_targets, nms_threshold, iou_threshold, overlay_w, overlay_h)
+        batch_test(test_data_path, test_model, device, draw_targets, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h)

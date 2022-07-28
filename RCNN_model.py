@@ -10,6 +10,7 @@ import transforms, utils, engine, train
 from utils import collate_fn
 import torchvision
 import argparse
+import time
 
 # the following instructions https://medium.com/@alexppppp/how-to-train-a-custom-keypoint-detection-model-with-pytorch-d9af90e111da
 
@@ -197,7 +198,7 @@ def train_rcnn(num_epochs, root):
     dataset_train = ClassDataset(KEYPOINTS_FOLDER_TRAIN, transform=train_transform(), demo=False)
     dataset_test = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
 
-    data_loader_train = DataLoader(dataset_train, batch_size=3, shuffle=True, collate_fn=collate_fn)
+    data_loader_train = DataLoader(dataset_train, batch_size=2, shuffle=True, collate_fn=collate_fn)
     data_loader_test = DataLoader(dataset_test, batch_size=1, shuffle=False, collate_fn=collate_fn)
     
     model = get_model(num_keypoints = 2)
@@ -252,9 +253,11 @@ def train_rcnn(num_epochs, root):
 
     
 if __name__ == '__main__':
+    torch.cuda.empty_cache()
+    
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=10, help="Specify number of epoch", type=int)
+    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
+    parser.add_argument('num_epoch', nargs='?', default=15, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path
@@ -277,4 +280,13 @@ if __name__ == '__main__':
     else:
         print('*****************************DEVICE: CPU*****************************')
     
+    sec_start = time.time()
+    struct_start = time.localtime(sec_start)
+    start_time = time.strftime('%d.%m.%Y %H:%M', struct_start)
+
     model, weights_path = train_rcnn(num_epoch, root_path)
+    
+    sec_finish = time.time()
+    struct_finish = time.localtime(sec_finish)
+    finish_time = time.strftime('%d.%m.%Y %H:%M', struct_finish)
+    print(f'Started {start_time} Finished {finish_time}')
