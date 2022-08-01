@@ -48,10 +48,13 @@ def visualize(image, bboxes, keypoints, scores, image_original=None, bboxes_orig
         image = cv2.rectangle(image.copy(), start_point, end_point, (255,0,0), 2)
         org = (bbox[0], bbox[1])
         image = cv2.putText(image.copy(), " " + str(round(scores[idx], 2)), org , cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
-    
     for kps in keypoints:
         for idx, kp in enumerate(kps):
-            image = cv2.circle(image.copy(), tuple(kp), 2, (255,0,0), 10)
+            overlay = image.copy()
+            overlay = cv2.circle(overlay, tuple(kp), 2, (255,0,0), 10)
+            # try to make transparent
+            alpha = 0.4
+            image = cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0)
             image = cv2.putText(image.copy(), " " + keypoints_classes_ids2names[idx], tuple(kp), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 1, cv2.LINE_AA)
     if image_original is None and keypoints_original is None:
         if show_flag:
