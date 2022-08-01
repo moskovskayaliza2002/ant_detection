@@ -17,7 +17,6 @@ def get_out_kp_bb(out, left_x, left_y, conf_threshold, iou_threshold):
     high_scores_idxs = np.where(scores > conf_threshold)[0].tolist() # Indexes of boxes with scores > 0.7
     post_nms_idxs = torchvision.ops.nms(out[0]['boxes'][high_scores_idxs], out[0]['scores'][high_scores_idxs], iou_threshold).cpu().numpy() # Indexes of boxes left after applying NMS (iou_threshold=0.3)
     
-    print(high_scores_idxs, post_nms_idxs)
     
     my_scores = out[0]['scores'][high_scores_idxs][post_nms_idxs].detach().cpu().numpy()
     
@@ -33,7 +32,6 @@ def get_out_kp_bb(out, left_x, left_y, conf_threshold, iou_threshold):
     for bbox in out[0]['boxes'][high_scores_idxs][post_nms_idxs].detach().cpu().numpy():
         xmin, ymin, xmax, ymax = map(int, bbox.tolist())
         bboxes.append([xmin + left_x, ymin + left_y, xmax + left_x, ymax + left_y])
-    print(f'bboxes {bboxes}, keypoints {keypoints}, my_scores {my_scores}')
     
     return keypoints, bboxes, my_scores
 
@@ -46,14 +44,14 @@ def visualize(image, bboxes, keypoints, scores, image_original=None, bboxes_orig
         start_point = (bbox[0], bbox[1])
         end_point = (bbox[2], bbox[3])
         image = cv2.rectangle(image.copy(), start_point, end_point, (255,0,0), 2)
-        org = (bbox[0], bbox[1])
-        image = cv2.putText(image.copy(), " " + str(round(scores[idx], 2)), org , cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
+        org = (bbox[0] - 3, bbox[1] - 3)
+        image = cv2.putText(image.copy(), str(round(scores[idx], 2)), org , cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 1, cv2.LINE_AA)
     for kps in keypoints:
         for idx, kp in enumerate(kps):
             overlay = image.copy()
             overlay = cv2.circle(overlay, tuple(kp), 2, (255,0,0), 10)
             # try to make transparent
-            alpha = 0.4
+            alpha = 0.5
             image = cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0)
             image = cv2.putText(image.copy(), " " + keypoints_classes_ids2names[idx], tuple(kp), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 1, cv2.LINE_AA)
     if image_original is None and keypoints_original is None:
@@ -72,7 +70,11 @@ def visualize(image, bboxes, keypoints, scores, image_original=None, bboxes_orig
         
         for kps in keypoints_original:
             for idx, kp in enumerate(kps):
-                image_original = cv2.circle(image_original, tuple(kp), 2, (0,255,0), 10)
+                orig_overlay = image_original.copy()
+                orig_overlay = cv2.circle(orig_overlay, tuple(kp), 2, (0,255,0), 10)
+                alpha = 0.5
+                image_original = cv2.addWeighted(orig_overlay, alpha, image_original, 1 - alpha, 0)
+                #image_original = cv2.circle(image_original, tuple(kp), 2, (0,255,0), 10)
                 image_original = cv2.putText(image_original, " " + keypoints_classes_ids2names[idx], tuple(kp), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
                 
         f, ax = plt.subplots(1, 2, figsize=(40, 20))
@@ -385,9 +387,11 @@ if __name__ == '__main__':
     test_model = get_model(2, model_path)
     
     if test_data_path[-3:] == 'png':
+        print('*********Обработка единственного изображения*********')
         one_image_test(test_data_path, test_model, device, draw_targets, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h)
     elif test_data_path[-3:] == 'mp4' or test_data_path[-3:] == 'MOV':
         draw_targets = False
+        print('*********Обработка видеофайла*********')
         full_video(test_data_path, test_model, device, draw_targets, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h)
     else:
         batch_test(test_data_path, test_model, device, draw_targets, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h)
