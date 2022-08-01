@@ -112,8 +112,8 @@ def selection(boxA, boxB, kpA, kpB, treshould = 0.75):
             bb = new_boxA
             kp = new_kpA
         elif len(new_boxA) == 0:
-            bb = new_boxA
-            kp = new_kpA
+            bb = new_boxB
+            kp = new_kpB
         else:
             bb = np.vstack([np.array(new_boxA), np.array(new_boxB)]) 
             kp = np.vstack([np.array(new_kpA), np.array(new_kpB)]) 
