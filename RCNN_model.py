@@ -1,4 +1,5 @@
 from torchvision.models.detection.rpn import AnchorGenerator
+from torchvision.models import ResNet50_Weights
 import os, json, cv2, numpy as np, matplotlib.pyplot as plt
 import torch
 from datetime import datetime
@@ -10,6 +11,7 @@ import transforms, utils, engine, train
 from utils import collate_fn
 import torchvision
 import argparse
+import time
 
 # the following instructions https://medium.com/@alexppppp/how-to-train-a-custom-keypoint-detection-model-with-pytorch-d9af90e111da
 
@@ -125,8 +127,14 @@ class ClassDataset(Dataset):
 def get_model(num_keypoints, weights_path=None):
     
     anchor_generator = AnchorGenerator(sizes=(32, 64, 128, 256, 512), aspect_ratios=(0.25, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0))
-    model = torchvision.models.detection.keypointrcnn_resnet50_fpn(pretrained=False,
-                                                                   pretrained_backbone=True,
+    #model = torchvision.models.detection.keypointrcnn_resnet50_fpn(pretrained=False,
+    #                                                               pretrained_backbone=True,
+    #                                                               num_keypoints=num_keypoints,
+    #                                                               num_classes = 2,
+    #                                                               rpn_anchor_generator=anchor_generator)
+    
+    model = torchvision.models.detection.keypointrcnn_resnet50_fpn(weights=None,
+                                                                   weights_backbone=ResNet50_Weights.DEFAULT,
                                                                    num_keypoints=num_keypoints,
                                                                    num_classes = 2,
                                                                    rpn_anchor_generator=anchor_generator)
@@ -181,7 +189,7 @@ def train_rcnn(num_epochs, root):
     #KEYPOINTS_FOLDER_TEST = root + '/test_data'
     #KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
     KEYPOINTS_FOLDER_TEST = root + '/Test_while_train_data'
-    KEYPOINTS_FOLDER_TRAIN = root + '/Train_data'
+    KEYPOINTS_FOLDER_TRAIN = root + '/Train_dataset'
     SAVING_WEIGHTS_PATH = root + '/rcnn_models/'
     
     if not os.path.exists(SAVING_WEIGHTS_PATH):
@@ -197,8 +205,8 @@ def train_rcnn(num_epochs, root):
     dataset_train = ClassDataset(KEYPOINTS_FOLDER_TRAIN, transform=train_transform(), demo=False)
     dataset_test = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
 
-    data_loader_train = DataLoader(dataset_train, batch_size=3, shuffle=True, collate_fn=collate_fn)
-    data_loader_test = DataLoader(dataset_test, batch_size=1, shuffle=False, collate_fn=collate_fn)
+    data_loader_train = DataLoader(dataset_train, batch_size=5, shuffle=True, collate_fn=collate_fn)
+    data_loader_test = DataLoader(dataset_test, batch_size=2, shuffle=False, collate_fn=collate_fn)
     
     model = get_model(num_keypoints = 2)
     model.to(device)
@@ -252,9 +260,11 @@ def train_rcnn(num_epochs, root):
 
     
 if __name__ == '__main__':
+    torch.cuda.empty_cache()
+    
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=10, help="Specify number of epoch", type=int)
+    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
+    parser.add_argument('num_epoch', nargs='?', default=5, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path
@@ -277,4 +287,13 @@ if __name__ == '__main__':
     else:
         print('*****************************DEVICE: CPU*****************************')
     
+    sec_start = time.time()
+    struct_start = time.localtime(sec_start)
+    start_time = time.strftime('%d.%m.%Y %H:%M', struct_start)
+
     model, weights_path = train_rcnn(num_epoch, root_path)
+    
+    sec_finish = time.time()
+    struct_finish = time.localtime(sec_finish)
+    finish_time = time.strftime('%d.%m.%Y %H:%M', struct_finish)
+    print(f'Started {start_time} Finished {finish_time}')

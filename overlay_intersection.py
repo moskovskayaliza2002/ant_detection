@@ -109,6 +109,22 @@ def find_kp(num, root_path):
     return orig_kp, kp
 
 
+def conv_x(old, old_min, new_min, old_max, new_max):
+    old_range = old_max - old_min  
+    new_range = new_max - new_min 
+    
+    converted = (((old - old_min) * new_range) / old_range) + new_min
+    return int(converted)
+
+
+def conv_y(old, old_min, new_min, old_max, new_max):
+    old_range = old_max - old_min  
+    new_range = new_max - new_min 
+    
+    converted = (((old - old_min) * new_range) / old_range) + new_min
+    return int(converted)
+
+
 def resize_bboxes_kps(bboxes, kps, left_x, left_y, right_x, right_y):
     # Изменяет размеры боксов
     new_list_bboxes = []
@@ -125,9 +141,28 @@ def resize_bboxes_kps(bboxes, kps, left_x, left_y, right_x, right_y):
             flag = False
         # проверка на то, что это не бокс за границей обрезанной области
         if flag == True and not(xmax <= left_x or ymax <= left_y or ymin >= right_y or xmin >= right_x):
-            new_list_bboxes.append([xmin - left_x, ymin - left_y, xmax - left_x, ymax - left_y])
-            x_a, y_a, x_h, y_h = kps[i][0], kps[i][1], kps[i][2], kps[i][3]
-            new_list_kps.append([x_a - left_x, y_a - left_y, x_h - left_x, y_h - left_y])
+            #new_list_bboxes.append([xmin - left_x, ymin - left_y, xmax - left_x, ymax - left_y])
+            #resize to 300 300
+            #x_f = conv_x(xmin - left_x, left_x, 0, right_x, 300)
+            #y_f = conv_y(ymin - left_y, left_y, 0, right_y, 300)
+            #x_s = conv_x(xmax - left_x, left_x, 0, right_x, 300)
+            #y_s = conv_y(ymax - left_y, left_y, 0, right_y, 300)
+            x_f = conv_x(xmin, left_x, 0, right_x, 300)
+            y_f = conv_y(ymin, left_y, 0, right_y, 300)
+            x_s = conv_x(xmax, left_x, 0, right_x, 300)
+            y_s = conv_y(ymax, left_y, 0, right_y, 300)
+            new_list_bboxes.append([x_f, y_f, x_s, y_s])
+            
+            #x_a = conv_x(kps[i][0] - left_x, left_x, 0, right_x, 300)
+            #y_a = conv_y(kps[i][1] - left_y, left_y, 0, right_y, 300)
+            #x_h = conv_x(kps[i][2] - left_x, left_x, 0, right_x, 300)
+            #y_h = conv_y(kps[i][3] - left_y, left_y, 0, right_y, 300)
+            x_a = conv_x(kps[i][0], left_x, 0, right_x, 300)
+            y_a = conv_y(kps[i][1], left_y, 0, right_y, 300)
+            x_h = conv_x(kps[i][2], left_x, 0, right_x, 300)
+            y_h = conv_y(kps[i][3], left_y, 0, right_y, 300)
+            new_list_kps.append([x_a, y_a, x_h, y_h])
+            #new_list_kps.append([x_a - left_x, y_a - left_y, x_h - left_x, y_h - left_y])
             k += 1
     return k, new_list_bboxes, new_list_kps
 
@@ -135,28 +170,32 @@ def resize_bboxes_kps(bboxes, kps, left_x, left_y, right_x, right_y):
 def verification(bboxes, kp, l1, l2, r1, r2, crop_w, crop_h, delta_w, delta_h, s_path, counter):
     l1_ants_counter, l1_bb, l1_kps = resize_bboxes_kps(bboxes, kp, 0, 0, crop_w + delta_w, crop_h + delta_h)
     if l1_ants_counter != 0:
-        cv2.imwrite(s_path + '/images' + '/image' + str(counter + 1) + '.png', l1)
+        resized_l1 = cv2.resize(l1, (300, 300), interpolation = cv2.INTER_AREA)
+        cv2.imwrite(s_path + '/images' + '/image' + str(counter + 1) + '.png', resized_l1)
         write_bbox(l1_bb, s_path + '/bboxes' + '/bbox' + str(counter + 1) + '.txt')
         write_bbox(l1_kps, s_path + '/keypoints' + '/keypoint' + str(counter + 1) + '.txt')
         counter += 1
     
     l2_ants_counter, l2_bb, l2_kps = resize_bboxes_kps(bboxes, kp, 0, crop_h - delta_h, crop_w + delta_w, 2 * crop_h)
     if l2_ants_counter != 0:
-        cv2.imwrite(s_path + '/images' + '/image' + str(counter + 1) + '.png', l2)
+        resized_l2 = cv2.resize(l2, (300, 300), interpolation = cv2.INTER_AREA)
+        cv2.imwrite(s_path + '/images' + '/image' + str(counter + 1) + '.png', resized_l2)
         write_bbox(l2_bb, s_path + '/bboxes' + '/bbox' + str(counter + 1) + '.txt')
         write_bbox(l2_kps, s_path + '/keypoints' + '/keypoint' + str(counter + 1) + '.txt')
         counter += 1
     
     r1_ants_counter, r1_bb, r1_kps = resize_bboxes_kps(bboxes, kp, crop_w - delta_w, 0, 2 * crop_w, crop_h + delta_h)
     if r1_ants_counter != 0:
-        cv2.imwrite(s_path + '/images' + '/image' + str(counter + 1) + '.png', r1)
+        resized_r1 = cv2.resize(r1, (300, 300), interpolation = cv2.INTER_AREA)
+        cv2.imwrite(s_path + '/images' + '/image' + str(counter + 1) + '.png', resized_r1)
         write_bbox(r1_bb, s_path + '/bboxes' + '/bbox' + str(counter + 1) + '.txt')
         write_bbox(r1_kps, s_path + '/keypoints' + '/keypoint' + str(counter + 1) + '.txt')
         counter += 1
     
     r2_ants_counter, r2_bb, r2_kps = resize_bboxes_kps(bboxes, kp, crop_w - delta_w, crop_h - delta_h, 2 * crop_w, 2 * crop_h)
     if r2_ants_counter != 0:
-        cv2.imwrite(s_path + '/images' + '/image' + str(counter + 1) + '.png', r2)
+        resized_r2 = cv2.resize(r2, (300, 300), interpolation = cv2.INTER_AREA)
+        cv2.imwrite(s_path + '/images' + '/image' + str(counter + 1) + '.png', resized_r2)
         write_bbox(r2_bb, s_path + '/bboxes' + '/bbox' + str(counter + 1) + '.txt')
         write_bbox(r2_kps, s_path + '/keypoints' + '/keypoint' + str(counter + 1) + '.txt')
         counter += 1
@@ -177,7 +216,7 @@ def cropper(new_root_path, old_root_path, overlay_w, overlay_h):
             shutil.rmtree(i)
             os.mkdir(i) 
     
-    count = -1
+    count = 508
     for f in os.scandir(old_root_path + '/images'):
         if f.is_file() and f.path.split('.')[-1].lower() == 'png':
             original_image = cv2.imread(f.path)
@@ -192,8 +231,8 @@ def cropper(new_root_path, old_root_path, overlay_w, overlay_h):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('old_root', nargs='?', default='/home/ubuntu/ant_detection/TRAIN_on_real', help="Specify directory with old dataset, there should be such folders as images, keypoints and bboxes", type=str)
-    parser.add_argument('new_root', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay', help="Specify path for new data directory", type=str)
+    parser.add_argument('old_root', nargs='?', default='/home/ubuntu/ant_detection/new_train_data', help="Specify directory with old dataset, there should be such folders as images, keypoints and bboxes", type=str)
+    parser.add_argument('new_root', nargs='?', default='/home/ubuntu/ant_detection/new_train_data/cropped', help="Specify path for new data directory", type=str)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
     args = parser.parse_args()

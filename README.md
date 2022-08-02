@@ -67,7 +67,7 @@
 - *overlay_h*. Количество пикселей, которые пересекают изображения по оси Y. type = int.
 
 ### RCNN_model.py
-Прежде, чем запустить этот скрипт, откройте файл *pycocotools/cocoeval.py*, и замените 523 строку на
+Прежде, чем запустить этот скрипт, установите библиотеку *pycocotools* командой *pip install pycocotools* откройте файл *pycocotools/cocoeval.py*, и замените 523 строку на
 
     self.kpt_oks_sigmas = np.array([.5, .5])/10.0
     
