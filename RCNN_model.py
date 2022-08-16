@@ -26,6 +26,22 @@ def train_transform():
     bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bboxes_labels']) # Bboxes should have labels, read more at https://albumentations.ai/docs/getting_started/bounding_boxes_augmentation/
     )
 
+#@torch.no_grad()
+#def evaluate_loss(model, data_loader, device):
+#    val_loss = 0
+#    with torch.no_grad():
+#      for images, targets in data_loader:
+#          images = list(image.to(device) for image in images)
+#          targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+#          losses_dict, detections = eval_forward(model, images, targets)
+#         
+#          losses = sum(loss for loss in loss_dict.values())
+#
+#          val_loss += losses
+#          
+#    validation_loss = val_loss/ len(data_loader)    
+#    return validation_loss
+
 
 class ClassDataset(Dataset):
     def __init__(self, root, transform=None, demo=False):                
@@ -189,7 +205,7 @@ def train_rcnn(num_epochs, root):
     #KEYPOINTS_FOLDER_TEST = root + '/test_data'
     #KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
     KEYPOINTS_FOLDER_TEST = root + '/Test_while_train_data'
-    KEYPOINTS_FOLDER_TRAIN = root + '/Train_dataset'
+    KEYPOINTS_FOLDER_TRAIN = root + '/Train_data'
     SAVING_WEIGHTS_PATH = root + '/rcnn_models/'
     
     if not os.path.exists(SAVING_WEIGHTS_PATH):
@@ -205,8 +221,8 @@ def train_rcnn(num_epochs, root):
     dataset_train = ClassDataset(KEYPOINTS_FOLDER_TRAIN, transform=train_transform(), demo=False)
     dataset_test = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
 
-    data_loader_train = DataLoader(dataset_train, batch_size=5, shuffle=True, collate_fn=collate_fn)
-    data_loader_test = DataLoader(dataset_test, batch_size=2, shuffle=False, collate_fn=collate_fn)
+    data_loader_train = DataLoader(dataset_train, batch_size=3, shuffle=True, collate_fn=collate_fn)
+    data_loader_test = DataLoader(dataset_test, batch_size=1, shuffle=False, collate_fn=collate_fn)
     
     model = get_model(num_keypoints = 2)
     model.to(device)
@@ -249,6 +265,10 @@ def train_rcnn(num_epochs, root):
         plt.gcf().canvas.start_event_loop(0.3)
 
         lr_scheduler.step()
+        
+        #validation_loss  = evaluate_loss(model, data_loader_test, device=device)
+        #print(f"validation_loss: {validation_loss}")
+        
         evaluate(model, data_loader_test, device)
         if total < min_loss:
             min_loss = total
@@ -263,8 +283,8 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=5, help="Specify number of epoch", type=int)
+    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay', help="Specify main directory", type=str)
+    parser.add_argument('num_epoch', nargs='?', default=12, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path

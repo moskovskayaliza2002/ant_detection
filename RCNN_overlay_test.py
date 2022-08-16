@@ -9,7 +9,9 @@ import glob
 import torch
 from torchvision.transforms import functional as F
 import matplotlib.pyplot as plt
-
+import yaml
+import time
+from collections import OrderedDict
     
 def get_out_kp_bb(out, left_x, left_y, conf_threshold, iou_threshold):
     # Функция для маштабирования предказанных координат на новый диапазон
@@ -120,6 +122,8 @@ def chose_right_bbox(bbox, keypoints, scores):
 def show_video(path):
     #Показ видео
     cap = cv2.VideoCapture(path)
+    cv2.namedWindow("window", cv2.WND_PROP_FULLSCREEN)
+    cv2.setWindowProperty("video.mp4",cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
     if (cap.isOpened()== False):
         print("Error opening video stream or file")
     while(cap.isOpened()):
@@ -289,7 +293,7 @@ def one_image_test(im_path, model, device, flag, conf_threshold, nms_threshold, 
     else:
         if not show_flag:
             pr_im = visualize(img, pred_b, pred_kp, pred_sc, show_flag = show_flag)
-            return pr_im
+            return pr_im, pred_b, pred_kp, pred_sc
         else:
             visualize(img, pred_b, pred_kp, pred_sc, show_flag = show_flag)
         
@@ -313,10 +317,20 @@ def full_video(filename, model, device, targets, conf_threshold, nms_threshold, 
     targets = False
     #Подготовка файла записи
     new_filename = filename[:filename.rfind('/')] + '/predicted.mp4'
+    yml_filename = filename[:filename.rfind('/')] + '/predicted.yml'
+    
+    yml_data = []
+        
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     fps = cap.get(cv2.CAP_PROP_FPS)
     w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
     h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    with open(yml_filename, 'w') as f:
+        #data = yaml.dump({'name': filename}, f)
+        yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
+        yaml.dump(OrderedDict({'name': filename, 'FPS': fps, 'weight': w, 'height': h}), f)
+        
+        
     size = (int(w), int(h))
     out = cv2.VideoWriter(new_filename, fourcc, fps, size, True)
     #Открываем файл
@@ -325,16 +339,23 @@ def full_video(filename, model, device, targets, conf_threshold, nms_threshold, 
         cv2.waitKey(1000)
         print("Openning the file...")
 
-    pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
+    #pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
     maxim_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     
     while True:
         flag, frame = cap.read()
         if flag:
             #Получаем кадр, рисуем на нем предсказания и записываем в видеоряд
-            pred_im = one_image_test(frame, model, device, targets, conf_threshold, nms_threshold, iou_threshold, delta_w, delta_h, False)
-            out.write(pred_im)
             pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
+            pred_im, pred_b, pred_kp, pred_sc = one_image_test(frame, model, device, targets, conf_threshold, nms_threshold, iou_threshold, delta_w, delta_h, False)
+            yml_data.append(OrderedDict({int(pos_frame): {'bboxes': pred_b, 'bboxes_scores': pred_sc, 'keypoints': pred_kp}}))
+            
+            #with open(yml_filename, 'a') as f:
+                #my_dict = OrderedDict({'frame': pos_frame, 'values': {'bboxes': pred_b, 'bboxes_scores': pred_sc, 'keypoints': pred_kp}})
+                #yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
+                #yaml.dump(my_dict, f)
+            #write_pred_into_file(pos_frame, pred_b, pred_kp, pred_sc, yml_filename)
+            out.write(pred_im)
             print(f'{pos_frame} frame from {maxim_frames}')
         else:
             #Читаем заново, если следующий кадр не готов
@@ -349,24 +370,84 @@ def full_video(filename, model, device, targets, conf_threshold, nms_threshold, 
             #Если прочитали все кадры - выходим из цикла
             break
         
+    #Пушим всю информацию о кадрах    
+    with open(yml_filename, 'a') as f:
+        yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
+        data = OrderedDict({'frames': yml_data})
+        yaml.dump(data, f)
+        
     out.release()
     cap.release()
     cv2.destroyAllWindows()
     
     show_video(new_filename)
+    
+    
+def read_yaml(yml_filename):
+    with open(yml_filename) as f:
+        yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
+        datas = list(yaml.safe_load_all(f))
+        return datas[0]
+    
+    
+def visualize_from_yml(yml_path, video_path, pred_video_path):
+    data = read_yaml(yml_path)
+    cap = cv2.VideoCapture(video_path)
+    while not cap.isOpened():
+        cap = cv2.VideoCapture(video_path)
+        cv2.waitKey(1000)
+        print("Openning the file...")
+        
+    maxim_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+    h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    size = (int(w), int(h))
+    out = cv2.VideoWriter(pred_video_path, fourcc, fps, size, True)
+    
+    while True:
+        flag, frame = cap.read()
+        if flag:
+            pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
+            pred_bboxes = data['frames'][int(pos_frame)-1][pos_frame]['bboxes']
+            pred_keypoints = data['frames'][int(pos_frame)-1][pos_frame]['keypoints']
+            pred_scores = data['frames'][int(pos_frame)-1][pos_frame]['bboxes_scores']
+            pred_image = visualize(frame, pred_bboxes, pred_keypoints, pred_scores, show_flag = False)
+            out.write(pred_image)
+            print(f'{pos_frame} frame from {maxim_frames}')
+        if cv2.waitKey(10) == 27:
+            break
+        if cap.get(cv2.CAP_PROP_POS_FRAMES) == cap.get(cv2.CAP_PROP_FRAME_COUNT):
+            #Если прочитали все кадры - выходим из цикла
+            break
+            
+    out.release()
+    cap.release()   
+    show_video(pred_video_path)
+    cv2.destroyAllWindows()
+            
+    
 if __name__ == '__main__':       
     parser = argparse.ArgumentParser()
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA/images/0a302e52-image202.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/Test_data/images/0bf28388-image31.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/rcnn_models/20220727-170625/best_weights.pth', help="Specify weights path", type=str)
-    parser.add_argument('draw_targets', nargs='?', default=True, help="True - will draw targets, False - will not", type=bool)
-    parser.add_argument('conf_threshold', nargs='?', default=0.3, help="Confident threshold for boxes", type=float)
+    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/videos/inputs/short.mp4', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay/rcnn_models/20220804-115738/best_weights.pth', help="Specify weights path", type=str)
+    parser.add_argument('draw_targets', nargs='?', default=False, help="True - will draw targets, False - will not", type=bool)
+    parser.add_argument('conf_threshold', nargs='?', default=0.1, help="Confident threshold for boxes", type=float)
     parser.add_argument('nms_threshold', nargs='?', default=0.1, help="Non maximum suppression threshold for boxes", type=float)
     parser.add_argument('iou_threshold', nargs='?', default=0.2, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
     
+    
+
+    #print(read_yaml('/home/ubuntu/ant_detection/videos/inputs/predicted.yml')['name'])
+    visualize_from_yml('/home/ubuntu/ant_detection/videos/inputs/predicted.yml', '/home/ubuntu/ant_detection/videos/inputs/short.mp4', '/home/ubuntu/ant_detection/videos/inputs/annot_from_yml.mp4')
+    
+    print('vse!!!!!!!!!!!!!')
+    time.sleep(20000)
     args = parser.parse_args()
     test_data_path = args.test_data_path
     model_path = args.model_path
@@ -377,6 +458,9 @@ if __name__ == '__main__':
     overlay_w = args.overlay_w
     overlay_h = args.overlay_h
     
+    #write_pred_into_file(2, [[1,1,1,1], [2,2,2,2]], [[1,1,1,1], [2,2,2,2]], [0.9, 0.2], '/home/ubuntu/ant_detection/')
+    #print('vse!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    #time.sleep(20000)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
     if torch.cuda.is_available():
