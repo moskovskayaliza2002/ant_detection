@@ -19,7 +19,6 @@ def get_out_kp_bb(out, left_x, left_y, conf_threshold, iou_threshold):
     high_scores_idxs = np.where(scores > conf_threshold)[0].tolist() # Indexes of boxes with scores > 0.7
     post_nms_idxs = torchvision.ops.nms(out[0]['boxes'][high_scores_idxs], out[0]['scores'][high_scores_idxs], iou_threshold).cpu().numpy() # Indexes of boxes left after applying NMS (iou_threshold=0.3)
     
-    
     my_scores = out[0]['scores'][high_scores_idxs][post_nms_idxs].detach().cpu().numpy()
     
     keypoints = []
@@ -40,6 +39,7 @@ def get_out_kp_bb(out, left_x, left_y, conf_threshold, iou_threshold):
 
 def visualize(image, bboxes, keypoints, scores, image_original=None, bboxes_original=None, keypoints_original=None, show_flag = True):
     # Рисует на изображении предсказанные и настоящие боксы и ключевые точки.
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) # !!!!! ВОЗМОЖНО НУЖНО УДАЛИТЬ !!!!!
     fontsize = 12
     keypoints_classes_ids2names = {0: 'A', 1: 'H'}
     for idx, bbox in enumerate(bboxes):
@@ -442,9 +442,7 @@ if __name__ == '__main__':
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
     
     
-
-    #print(read_yaml('/home/ubuntu/ant_detection/videos/inputs/predicted.yml')['name'])
-    visualize_from_yml('/home/ubuntu/ant_detection/videos/inputs/predicted.yml', '/home/ubuntu/ant_detection/videos/inputs/short.mp4', '/home/ubuntu/ant_detection/videos/inputs/annot_from_yml.mp4')
+    #visualize_from_yml('/home/ubuntu/ant_detection/videos/inputs/predicted.yml', '/home/ubuntu/ant_detection/videos/inputs/short.mp4', '/home/ubuntu/ant_detection/videos/inputs/annot_from_yml.mp4')
     
     print('vse!!!!!!!!!!!!!')
     time.sleep(20000)
@@ -458,9 +456,6 @@ if __name__ == '__main__':
     overlay_w = args.overlay_w
     overlay_h = args.overlay_h
     
-    #write_pred_into_file(2, [[1,1,1,1], [2,2,2,2]], [[1,1,1,1], [2,2,2,2]], [0.9, 0.2], '/home/ubuntu/ant_detection/')
-    #print('vse!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-    #time.sleep(20000)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
     if torch.cuda.is_available():

@@ -67,7 +67,7 @@
 - *overlay_h*. Количество пикселей, которые пересекают изображения по оси Y. type = int.
 
 ### RCNN_model.py
-Прежде, чем запустить этот скрипт, установите библиотеку *pycocotools* командой *pip install pycocotools* откройте файл *pycocotools/cocoeval.py*, и замените 523 строку на
+Прежде, чем запустить этот скрипт, установите библиотеку *pycocotools* командой *pip install pycocotools* откройте файл *pycocotools/cocoeval.py* (он будет примерно по следующему пути: /usr/local/lib/python3.7/dist-packages/pycocotools/cocoeval.py), и замените 523 строку на
 
     self.kpt_oks_sigmas = np.array([.5, .5])/10.0
     
@@ -85,7 +85,7 @@
 Чтобы запустить скрипт, нужно передать параметры **в следующем порядке**:
 - *test_data_path*. Полный путь к изображени, к видео, или к папке с изображениями. type = str.
 - *model_path*. Полный путь к файлу с весами модели (расширение *.pth*). type = str.
-- *draw_targets*. Флаг, отвечающий за прорисовку таргетов. True - нарисует таргеты, False - нет. type = bool.
+- *draw_targets*. Флаг, отвечающий за прорисовку таргетов. True - нарисует таргеты, False - нет. type = bool. **Внимание! Если хотите выполнить предсказания на видео, передайте False**
 - *nms_threshold*. Порог NMS(Non maximum supression) для боксов. type = float.
 - *iou_threshold*. Порог IoU(intersection over union) для боксов. type = float.
 - *overlay_w*. Количество пикселей, которые пересекают изображения по оси X. type = int.
