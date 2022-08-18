@@ -444,8 +444,8 @@ if __name__ == '__main__':
     
     #visualize_from_yml('/home/ubuntu/ant_detection/videos/inputs/predicted.yml', '/home/ubuntu/ant_detection/videos/inputs/short.mp4', '/home/ubuntu/ant_detection/videos/inputs/annot_from_yml.mp4')
     
-    print('vse!!!!!!!!!!!!!')
-    time.sleep(20000)
+    #print('vse!!!!!!!!!!!!!')
+    #time.sleep(20000)
     args = parser.parse_args()
     test_data_path = args.test_data_path
     model_path = args.model_path
