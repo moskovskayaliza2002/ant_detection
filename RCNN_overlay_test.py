@@ -59,12 +59,15 @@ def visualize(image, bboxes, keypoints, scores, image_original=None, bboxes_orig
     if image_original is None and keypoints_original is None:
         if show_flag:
             plt.figure(figsize=(40,40))
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             plt.imshow(image)
             plt.show(block=True)
         else:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             return image
 
     else:
+        image_original = cv2.cvtColor(image_original, cv2.COLOR_BGR2RGB)
         for bbox in bboxes_original:
             start_point = (bbox[0], bbox[1])
             end_point = (bbox[2], bbox[3])
@@ -80,10 +83,12 @@ def visualize(image, bboxes, keypoints, scores, image_original=None, bboxes_orig
                 image_original = cv2.putText(image_original, " " + keypoints_classes_ids2names[idx], tuple(kp), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
                 
         f, ax = plt.subplots(1, 2, figsize=(40, 20))
-
+        
+        image_original = cv2.cvtColor(image_original, cv2.COLOR_BGR2RGB)
         ax[0].imshow(image_original)
         ax[0].set_title('Original annotations', fontsize=fontsize)
-
+        
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         ax[1].imshow(image)
         ax[1].set_title('Predicted annotations', fontsize=fontsize)
         plt.show(block=True)
@@ -211,8 +216,10 @@ def selection(boxA, boxB, kpA, kpB, scA, scB, nms_threshold):
         else:
             bb = np.vstack([np.array(new_boxA), np.array(new_boxB)]) 
             kp = np.vstack([np.array(new_kpA), np.array(new_kpB)]) 
-            sc = np.hstack([np.array(new_scoresA), np.array(new_scoresB)]) 
-        
+            sc = np.hstack([np.array(new_scoresA), np.array(new_scoresB)])
+            bb = bb.tolist()
+            kp = kp.tolist()
+            sc = sc.tolist()
         
         #print(f'bb {bb}, \nkp {kp}')
         #Объединяем с новыми и несовпадающими боксами
@@ -222,11 +229,11 @@ def selection(boxA, boxB, kpA, kpB, scA, scB, nms_threshold):
                 kp = mean_kp
                 sc = mean_sc
             else:
-                bb = np.vstack([bb, np.array(mean_bb)])
+                bb = np.vstack([np.array(bb), np.array(mean_bb)])
                 bb = bb.tolist()
-                kp = np.vstack([kp, np.array(mean_kp)]) 
+                kp = np.vstack([np.array(kp), np.array(mean_kp)]) 
                 kp = kp.tolist()
-                sc = np.hstack([sc, np.array(mean_sc)])
+                sc = np.hstack([np.array(sc), np.array(mean_sc)])
                 sc = sc.tolist()
         
         #print(f'bb {bb.tolist()}, \nkp {kp.tolist()}')
@@ -347,8 +354,10 @@ def full_video(filename, model, device, targets, conf_threshold, nms_threshold, 
         if flag:
             #Получаем кадр, рисуем на нем предсказания и записываем в видеоряд
             pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
+            #[float a for a in list]
             pred_im, pred_b, pred_kp, pred_sc = one_image_test(frame, model, device, targets, conf_threshold, nms_threshold, iou_threshold, delta_w, delta_h, False)
-            yml_data.append(OrderedDict({int(pos_frame): {'bboxes': pred_b, 'bboxes_scores': pred_sc, 'keypoints': pred_kp}}))
+            print(type(pred_b), type(pred_kp), type(pred_sc))
+            yml_data.append(OrderedDict({'frame': pos_frame, 'bboxes': pred_b, 'bboxes_scores': pred_sc, 'keypoints': pred_kp}))
             
             #with open(yml_filename, 'a') as f:
                 #my_dict = OrderedDict({'frame': pos_frame, 'values': {'bboxes': pred_b, 'bboxes_scores': pred_sc, 'keypoints': pred_kp}})
@@ -387,6 +396,7 @@ def read_yaml(yml_filename):
     with open(yml_filename) as f:
         yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
         datas = list(yaml.safe_load_all(f))
+        #datas = list(yaml.danger_load(f))
         return datas[0]
     
     
@@ -410,9 +420,9 @@ def visualize_from_yml(yml_path, video_path, pred_video_path):
         flag, frame = cap.read()
         if flag:
             pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
-            pred_bboxes = data['frames'][int(pos_frame)-1][pos_frame]['bboxes']
-            pred_keypoints = data['frames'][int(pos_frame)-1][pos_frame]['keypoints']
-            pred_scores = data['frames'][int(pos_frame)-1][pos_frame]['bboxes_scores']
+            pred_bboxes = data['frames'][int(pos_frame)-1]['bboxes']
+            pred_keypoints = data['frames'][int(pos_frame)-1]['keypoints']
+            pred_scores = data['frames'][int(pos_frame)-1]['bboxes_scores']
             pred_image = visualize(frame, pred_bboxes, pred_keypoints, pred_scores, show_flag = False)
             out.write(pred_image)
             print(f'{pos_frame} frame from {maxim_frames}')
@@ -432,12 +442,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA/images/0a302e52-image202.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/videos/inputs/short.mp4', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay/rcnn_models/20220804-115738/best_weights.pth', help="Specify weights path", type=str)
+    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/videos/inputs/cut40s.mp4', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay/rcnn_models/20220727-170625/best_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('draw_targets', nargs='?', default=False, help="True - will draw targets, False - will not", type=bool)
-    parser.add_argument('conf_threshold', nargs='?', default=0.1, help="Confident threshold for boxes", type=float)
-    parser.add_argument('nms_threshold', nargs='?', default=0.1, help="Non maximum suppression threshold for boxes", type=float)
-    parser.add_argument('iou_threshold', nargs='?', default=0.2, help="IOU threshold for boxes", type=float)
+    parser.add_argument('conf_threshold', nargs='?', default=0.0, help="Confident threshold for boxes", type=float)
+    parser.add_argument('nms_threshold', nargs='?', default=0.0, help="Non maximum suppression threshold for boxes", type=float)
+    parser.add_argument('iou_threshold', nargs='?', default=0.0, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
     

@@ -155,7 +155,10 @@ def get_model(num_keypoints, weights_path=None):
                                                                    num_classes = 2,
                                                                    rpn_anchor_generator=anchor_generator)
     if weights_path:
-        state_dict = torch.load(weights_path)
+        if not torch.cuda.is_available():
+            state_dict = torch.load(weights_path, map_location=torch.device('cpu'))
+        else:
+            state_dict = torch.load(weights_path)
         model.load_state_dict(state_dict)        
         
     return model
