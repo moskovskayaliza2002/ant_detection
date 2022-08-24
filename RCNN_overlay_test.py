@@ -239,7 +239,9 @@ def selection(boxA, boxB, kpA, kpB, scA, scB, nms_threshold):
         #print(f'bb {bb.tolist()}, \nkp {kp.tolist()}')
         return bb, kp, sc
     
-    
+def convert_to_float(lists):
+  return [float(el) if not isinstance(el,list) else convert_to_float(el) for el in lists]
+
 def iou_filter(kp_l1, bb_l1, sc_l1, kp_l2, bb_l2, sc_l2, kp_r1, bb_r1, sc_r1, kp_r2, bb_r2, sc_r2, c_w, c_h, delta_w, delta_h, nms_threshold):
     #Функция, объединяющая предсказанные ключевые точки и боксы
     
@@ -356,7 +358,17 @@ def full_video(filename, model, device, targets, conf_threshold, nms_threshold, 
             pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
             #[float a for a in list]
             pred_im, pred_b, pred_kp, pred_sc = one_image_test(frame, model, device, targets, conf_threshold, nms_threshold, iou_threshold, delta_w, delta_h, False)
-            print(type(pred_b), type(pred_kp), type(pred_sc))
+            #print(type(pred_b), type(pred_kp), type(pred_sc))
+            if not isinstance(pred_sc, list):
+                pred_sc = pred_sc.tolist()
+                
+            if not isinstance(pred_kp, list):
+                pred_kp = pred_kp.tolist()
+                
+            if not isinstance(pred_b, list):
+                pred_b = pred_b.tolist()
+                
+            #pred_sc = convert_to_float(pred_sc) использовать, если не поможет то, что выше
             yml_data.append(OrderedDict({'frame': pos_frame, 'bboxes': pred_b, 'bboxes_scores': pred_sc, 'keypoints': pred_kp}))
             
             #with open(yml_filename, 'a') as f:
