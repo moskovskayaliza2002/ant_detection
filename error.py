@@ -105,8 +105,8 @@ def batch_test(root, model, device, conf_threshold, iou_threshold, nms_threshold
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/test', help="Specify the full path to the folder with test data", type=str)
-    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay/rcnn_models/20220727-170625/best_weights.pth', help="Specify weights path", type=str)
+    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/Train_data', help="Specify the full path to the folder with test data", type=str)
+    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/rcnn_models/20220824-125607/best_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('conf_threshold', nargs='?', default=0.0, help="Confident threshold for boxes", type=float)
     parser.add_argument('nms_threshold', nargs='?', default=0.0, help="Non maximum suppression threshold for boxes", type=float)
     parser.add_argument('iou_threshold', nargs='?', default=0.0, help="IOU threshold for boxes", type=float)

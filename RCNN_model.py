@@ -224,8 +224,8 @@ def train_rcnn(num_epochs, root):
     dataset_train = ClassDataset(KEYPOINTS_FOLDER_TRAIN, transform=train_transform(), demo=False)
     dataset_test = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
 
-    data_loader_train = DataLoader(dataset_train, batch_size=3, shuffle=True, collate_fn=collate_fn)
-    data_loader_test = DataLoader(dataset_test, batch_size=1, shuffle=False, collate_fn=collate_fn)
+    data_loader_train = DataLoader(dataset_train, batch_size=4, shuffle=True, collate_fn=collate_fn)
+    data_loader_test = DataLoader(dataset_test, batch_size=3, shuffle=False, collate_fn=collate_fn)
     
     model = get_model(num_keypoints = 2)
     model.to(device)
@@ -276,6 +276,9 @@ def train_rcnn(num_epochs, root):
         if total < min_loss:
             min_loss = total
             torch.save(model.state_dict(), SAVING_WEIGHTS_PATH + '/best_weights.pth')
+        
+        torch.cuda.empty_cache()
+        
     plt.savefig(SAVING_WEIGHTS_PATH + '/loss.png')
     # Save model weights after training
     torch.save(model.state_dict(), SAVING_WEIGHTS_PATH + '/full_weights.pth')
@@ -286,8 +289,8 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=12, help="Specify number of epoch", type=int)
+    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
+    parser.add_argument('num_epoch', nargs='?', default=30, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path

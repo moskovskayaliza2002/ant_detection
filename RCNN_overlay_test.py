@@ -84,11 +84,11 @@ def visualize(image, bboxes, keypoints, scores, image_original=None, bboxes_orig
                 
         f, ax = plt.subplots(1, 2, figsize=(40, 20))
         
-        image_original = cv2.cvtColor(image_original, cv2.COLOR_BGR2RGB)
+        #image_original = cv2.cvtColor(image_original, cv2.COLOR_BGR2RGB)
         ax[0].imshow(image_original)
         ax[0].set_title('Original annotations', fontsize=fontsize)
         
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         ax[1].imshow(image)
         ax[1].set_title('Predicted annotations', fontsize=fontsize)
         plt.show(block=True)
@@ -127,14 +127,14 @@ def chose_right_bbox(bbox, keypoints, scores):
 def show_video(path):
     #Показ видео
     cap = cv2.VideoCapture(path)
-    cv2.namedWindow("window", cv2.WND_PROP_FULLSCREEN)
+    cv2.namedWindow('Predicted video', cv2.WND_PROP_FULLSCREEN)
     cv2.setWindowProperty("video.mp4",cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
     if (cap.isOpened()== False):
         print("Error opening video stream or file")
     while(cap.isOpened()):
         ret, frame = cap.read()
         if ret == True:
-            cv2.imshow('Frame',frame)
+            cv2.imshow('Predicted video',frame)
             if cv2.waitKey(25) & 0xFF == ord('q'):
                 break
         else:
@@ -353,6 +353,7 @@ def full_video(filename, model, device, targets, conf_threshold, nms_threshold, 
     
     while True:
         flag, frame = cap.read()
+        frame = cv2.resize(frame, size, interpolation = cv2.INTER_AREA)
         if flag:
             #Получаем кадр, рисуем на нем предсказания и записываем в видеоряд
             pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
@@ -368,7 +369,7 @@ def full_video(filename, model, device, targets, conf_threshold, nms_threshold, 
             if not isinstance(pred_b, list):
                 pred_b = pred_b.tolist()
                 
-            #pred_sc = convert_to_float(pred_sc) использовать, если не поможет то, что выше
+            pred_sc = convert_to_float(pred_sc) #использовать, если не поможет то, что выше
             yml_data.append(OrderedDict({'frame': pos_frame, 'bboxes': pred_b, 'bboxes_scores': pred_sc, 'keypoints': pred_kp}))
             
             #with open(yml_filename, 'a') as f:
@@ -454,12 +455,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA/images/0a302e52-image202.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/videos/inputs/cut40s.mp4', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay/rcnn_models/20220727-170625/best_weights.pth', help="Specify weights path", type=str)
+    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/videos/cut40s.mp4', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/rcnn_models/20220727-170625/best_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('draw_targets', nargs='?', default=False, help="True - will draw targets, False - will not", type=bool)
-    parser.add_argument('conf_threshold', nargs='?', default=0.0, help="Confident threshold for boxes", type=float)
-    parser.add_argument('nms_threshold', nargs='?', default=0.0, help="Non maximum suppression threshold for boxes", type=float)
-    parser.add_argument('iou_threshold', nargs='?', default=0.0, help="IOU threshold for boxes", type=float)
+    parser.add_argument('conf_threshold', nargs='?', default=0.3, help="Confident threshold for boxes", type=float)
+    parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes", type=float)
+    parser.add_argument('iou_threshold', nargs='?', default=0.3, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
     
