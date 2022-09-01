@@ -325,8 +325,10 @@ def full_video(filename, model, device, targets, conf_threshold, nms_threshold, 
     cap = cv2.VideoCapture(filename)
     targets = False
     #Подготовка файла записи
-    new_filename = filename[:filename.rfind('/')] + '/predicted.mp4'
-    yml_filename = filename[:filename.rfind('/')] + '/predicted.yml'
+    name = filename[filename.rfind('/'):filename.rfind('.')]
+    print(name)
+    new_filename = filename[:filename.rfind('/')] + name + '_pred' + '.mp4'
+    yml_filename = filename[:filename.rfind('/')] + name + '.yml'
     
     yml_data = []
         
@@ -455,12 +457,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA/images/0a302e52-image202.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/videos/cut40s.mp4', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/rcnn_models/20220727-170625/best_weights.pth', help="Specify weights path", type=str)
+    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/videos/inputs/cut6s.mp4', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay/rcnn_models/20220727-170625/best_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('draw_targets', nargs='?', default=False, help="True - will draw targets, False - will not", type=bool)
     parser.add_argument('conf_threshold', nargs='?', default=0.3, help="Confident threshold for boxes", type=float)
-    parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes", type=float)
-    parser.add_argument('iou_threshold', nargs='?', default=0.3, help="IOU threshold for boxes", type=float)
+    parser.add_argument('nms_threshold', nargs='?', default=0.6, help="Non maximum suppression threshold for boxes", type=float)
+    parser.add_argument('iou_threshold', nargs='?', default=0.5, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
     

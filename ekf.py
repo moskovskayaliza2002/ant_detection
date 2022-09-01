@@ -1,6 +1,11 @@
 import numpy as np
 from filterpy.kalman import ExtendedKalmanFilter
 from filterpy.stats import plot_covariance_ellipse
+from matplotlib.pyplot import cm
+
+MAX_AM_ANTS = 15
+TRESH_STEPS = 6
+ARROW_LEN = 50
 
 def HJacobian(x):
     H = [[1, 0, 0 ,0, 0],
@@ -33,14 +38,15 @@ class AntEKF(ExtendedKalmanFilter):
     Q_diag - [qx, qy, qa, qv, qw]
     dt - 1/fps
     '''
-    def __init__(self, start_x, p, R_diag, Q_diag, dt):
+    def __init__(self, start_x, p, R_diag, Q_diag, color, dt):
         super(AntEKF, self).__init__(AntEKF.X_SIZE, AntEKF.Z_SIZE)
                 
         self.dt = dt 
         self.x = start_x
-        self.P = np.eye(AntEKF.X_SIZE) * (1 - p) # maybe not good idea
+        self.P = np.eye(AntEKF.X_SIZE) #* (1 - p) # maybe not good idea
         self.R = np.diag(R_diag)
         self.Q = np.diag(Q_diag)
+        self.color = color
         
         self.no_update_steps = 0
         
@@ -114,19 +120,23 @@ class multiEKF(object):
     mahalanobis_thres - mahalanobis disnace at which count ants the same
     P_limit - limitation for covariance, if it is higher - remove that filter
     '''
-    def __init__(self, start_values, R_diag, Q_diag, dt, mahalanobis_thres, P_limit = np.inf):
+    def __init__(self, start_values, R_diag, Q_diag, dt, mahalanobis_thres, P_limit, xlim, ylim):
         
         self.mahalanobis_thres = mahalanobis_thres
         
         self.R_diag = R_diag
         self.Q_diag = Q_diag
+        #self.color = color
         self.dt = dt
         self.P_limit = P_limit
+        self.xlim = xlim
+        self.ylim = ylim
         
         self.EKFS = []
+        self.color = iter(cm.rainbow(np.linspace(0, 1, MAX_AM_ANTS)))
         for i in range(start_values.shape[0]):
-            
-            ekf = AntEKF(start_values[i][1:], start_values[i][0], self.R_diag, self.Q_diag, self.dt)                                    
+            c = next(self.color)
+            ekf = AntEKF(start_values[i][1:], start_values[i][0], self.R_diag, self.Q_diag, c, self.dt)                                    
             self.EKFS.append(ekf)                        
 
     '''
@@ -140,11 +150,13 @@ class multiEKF(object):
         # 2. calc correspondence
         old_values = self.get_all_ants_data_as_array()
         
-        inv_covs = np.array([np.linalg.inv(ekf.P[:3,:3]) for ekf in self.EKFS])
-        correspondence_matrix = multi_mahalanobis(new_values[:,1:4], old_values[:,:3], inv_covs)
+        # with angles
+        #inv_covs = np.array([np.linalg.inv(ekf.P[:3,:3]) for ekf in self.EKFS])
+        #correspondence_matrix = multi_mahalanobis(new_values[:,1:4], old_values[:,:3], inv_covs)
         
-        #inv_covs = np.array([np.linalg.inv(ekf.P[:2,:2]) for ekf in self.EKFS])
-        #correspondence_matrix = multi_mahalanobis(new_values[:,1:3], old_values[:,:2], inv_covs)
+        # without angles
+        inv_covs = np.array([np.linalg.inv(ekf.P[:2,:2]) for ekf in self.EKFS])
+        correspondence_matrix = multi_mahalanobis(new_values[:,1:3], old_values[:,:2], inv_covs)
         
         # store indexes of all ants, and then delete those which is taken for update, the rest will be new ants
         new_objects = list(range(new_values.shape[0]))
@@ -173,7 +185,7 @@ class multiEKF(object):
         for ind in new_objects:            
             #new_x = np.zeros(5)
             #new_x[:3] = new_values[ind][1:]
-            ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q_diag, self.dt)                                    
+            ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q_diag, next(self.color), self.dt)                                    
             self.EKFS.append(ekf)
                 
         # 5. forget bad filters (long no update, huge covs, etc.) 
@@ -182,10 +194,16 @@ class multiEKF(object):
         if self.P_limit != np.inf:
             filters_to_remove = []
             for i, ekf in enumerate(self.EKFS):
-                if np.any(ekf.P > self.P_limit):
+                if np.any(ekf.P[:2,:2] > self.P_limit):
                     filters_to_remove.append(i)                
             for index in sorted(filters_to_remove, reverse=True):
                 del self.EKFS[index]
+                
+        ## too long not update
+        #for ekf in self.EKFS:
+        #    if ekf.no_update_steps >= TRESH_STEPS:
+        #        ekf.track = np.copy(ekf.x)
+        #        ekf.no_update_steps = 0
                 
         
     def get_all_ants_data_as_array(self):
@@ -195,14 +213,27 @@ class multiEKF(object):
         return np.array(ants)
     
     def draw_tracks(self, H, ax, color = None):
+        #color = iter(cm.rainbow(np.linspace(0, 1, len(self.EKFS))))
         for ekf in self.EKFS:
             # plot track
             track = np.array(ekf.track)
-            #print(track)
-            #print(track[:,0], track[:,1])
-            ax.plot(track[:,0], H-track[:,1], color = color)                            
+            #speed = track[:,3][-1]
+            c = ekf.color 
+            x = ekf.x[0]
+            y = ekf.x[1]
+            a = ekf.x[2]
+            print(f'a: {a}, x: {x}, y: {y}')
+            delta_a = ekf.R[2][2]
+            print(delta_a)
+            print(ARROW_LEN * np.cos(a + delta_a))
+            ax.arrow(x, y, ARROW_LEN * np.cos(a + delta_a), ARROW_LEN * np.sin(a + delta_a), color = c)
+            ax.arrow(x, y, ARROW_LEN * np.cos(a - delta_a), ARROW_LEN * np.sin(a - delta_a), color = c)
+            ax.plot(track[:,0], track[:,1], color = c)
+            #ax.text(track[:,0] + 2, track[:,1] + 2, str(speed), color = c, fontsize='xx-small')
             # plot end
-            plot_covariance_ellipse((ekf.x[0], H-ekf.x[1]), ekf.P[0:2, 0:2], std=self.mahalanobis_thres, facecolor='g', alpha=0.8)
+            plot_covariance_ellipse((ekf.x[0], ekf.x[1]), ekf.P[0:2, 0:2], std=self.mahalanobis_thres, facecolor=c, alpha=0.2, xlim=(0,self.xlim), ylim=(self.ylim,0), ls=None, edgecolor=c)
+            # plot speed
+            # plot direction
 
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import mahalanobis
@@ -274,7 +305,3 @@ if __name__ == '__main__':
         
     
     plt.show()
-    
-    
-    
-    
