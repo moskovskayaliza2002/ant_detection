@@ -3,8 +3,8 @@ from filterpy.kalman import ExtendedKalmanFilter
 from filterpy.stats import plot_covariance_ellipse
 from matplotlib.pyplot import cm
 
-MAX_AM_ANTS = 15
-TRESH_STEPS = 6
+MAX_AM_ANTS = 50
+TRESH_STEPS = 25
 ARROW_LEN = 50
 
 def HJacobian(x):
@@ -200,8 +200,13 @@ class multiEKF(object):
                 del self.EKFS[index]
                 
         ## too long not update
-        #for ekf in self.EKFS:
-        #    if ekf.no_update_steps >= TRESH_STEPS:
+        obj_to_remove = []
+        for i, ekf in enumerate(self.EKFS):
+            print(f'Муравей {i} цвета {ekf.color} не обновлялся шагов: {ekf.no_update_steps}')
+            if ekf.no_update_steps >= TRESH_STEPS:
+                obj_to_remove.append(i)
+        for index in sorted(obj_to_remove, reverse=False):
+            del self.EKFS[index]
         #        ekf.track = np.copy(ekf.x)
         #        ekf.no_update_steps = 0
                 
@@ -222,10 +227,10 @@ class multiEKF(object):
             x = ekf.x[0]
             y = ekf.x[1]
             a = ekf.x[2]
-            print(f'a: {a}, x: {x}, y: {y}')
+            #print(f'a: {a}, x: {x}, y: {y}')
             delta_a = ekf.R[2][2]
-            print(delta_a)
-            print(ARROW_LEN * np.cos(a + delta_a))
+            #print(delta_a)
+            #print(a + delta_a, a - delta_a)
             ax.arrow(x, y, ARROW_LEN * np.cos(a + delta_a), ARROW_LEN * np.sin(a + delta_a), color = c)
             ax.arrow(x, y, ARROW_LEN * np.cos(a - delta_a), ARROW_LEN * np.sin(a - delta_a), color = c)
             ax.plot(track[:,0], track[:,1], color = c)

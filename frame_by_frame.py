@@ -66,8 +66,8 @@ def vis_frame_by_frame(video_path, yaml_path):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('video_path', nargs='?', default='/home/ubuntu/ant_detection/videos/inputs/short.mp4', help="Specify the full path to video", type=str)
-    parser.add_argument('yaml_path', nargs='?', default='/home/ubuntu/ant_detection/videos/inputs/short.yml', help="Specify the full path to video", type=str)
+    parser.add_argument('video_path', nargs='?', default='/home/ubuntu/ant_detection/videos/inputs/cut50s.mp4', help="Specify the full path to video", type=str)
+    parser.add_argument('yaml_path', nargs='?', default='/home/ubuntu/ant_detection/videos/inputs/cut50s.yml', help="Specify the full path to video", type=str)
     
     args = parser.parse_args()
     video_path = args.video_path

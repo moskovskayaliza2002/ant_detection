@@ -10,12 +10,12 @@ import cv2
 ARROW_LEN = 50
 D_ANT_COLOR = 'w'
 D_ANT_SYM = 'o'
-ANT_SCORE_MIN = 0.6
+ANT_SCORE_MIN = 0.4
 MEKF = None
-R_diag = np.array([10, 10, 10])
+R_diag = np.array([1.69, 3.76, 1.86])
 Q_diag = np.array([1, 1, 1, 3, 3])
 dt = 0.1
-mh = 15
+mh = 20
 P_limit = np.inf
 
 def proceed_frame(frame, W, H, ax):
@@ -72,18 +72,22 @@ if __name__ == '__main__':
     
     parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/inputs/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
     parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/inputs/{file_}.mp4', help="Full path to video file", type=str)
+    parser.add_argument('--pic_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/frames_track/', help="Full path to directory to save frames", type=str)
     args = parser.parse_args()
     print(f"Loading data from {args.yaml_path}...")
     ANT_DATA = read_yaml(args.yaml_path)    
     #print(d.keys() for d in ANT_DATA['frames'])
     dt = 1/ANT_DATA['FPS']
+    pic_save_path = args.pic_save_path
     
     print(f"Loading video {args.video_path}...")
     cap = cv2.VideoCapture(args.video_path)        
     
+    count = 1
     fig, ax = plt.subplots()      
     for frame in ANT_DATA['frames']:                          
         ax.clear()
+        print('Frame:', count)
         ret, frame_v = cap.read()
         #frame_v = np.flip(frame_v, (0,2))
         #print(frame_v.shape)
@@ -94,5 +98,7 @@ if __name__ == '__main__':
         plt.ylim(0, ANT_DATA['height'])
         proceed_frame(frame, ANT_DATA['weight'], ANT_DATA['height'], ax)
         
+        plt.savefig(pic_save_path + 'frame' + str(count) + '.png')
+        count += 1
         plt.pause(0.1)
         #plt.show()
