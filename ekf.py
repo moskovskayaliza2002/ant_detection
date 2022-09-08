@@ -3,7 +3,7 @@ from filterpy.kalman import ExtendedKalmanFilter
 from filterpy.stats import plot_covariance_ellipse
 from matplotlib.pyplot import cm
 
-MAX_AM_ANTS = 50
+MAX_AM_ANTS = 15
 TRESH_STEPS = 25
 ARROW_LEN = 50
 
@@ -110,6 +110,7 @@ def multi_mahalanobis(x, y, Sm):
     
     return D
 
+
 class multiEKF(object):
         
     '''
@@ -191,54 +192,85 @@ class multiEKF(object):
         # 5. forget bad filters (long no update, huge covs, etc.) 
         
         ## huge cov
+        old_colors = []
         if self.P_limit != np.inf:
             filters_to_remove = []
             for i, ekf in enumerate(self.EKFS):
                 if np.any(ekf.P[:2,:2] > self.P_limit):
-                    filters_to_remove.append(i)                
+                    filters_to_remove.append(i)
+                    
             for index in sorted(filters_to_remove, reverse=True):
+                color_to_use_AGAIN = self.EKFS[index].color
+                old_colors.append(color_to_use_AGAIN)
                 del self.EKFS[index]
+                
                 
         ## too long not update
         obj_to_remove = []
         for i, ekf in enumerate(self.EKFS):
-            print(f'Муравей {i} цвета {ekf.color} не обновлялся шагов: {ekf.no_update_steps}')
+            #print(f'Муравей {i} цвета {ekf.color} не обновлялся шагов: {ekf.no_update_steps}')
             if ekf.no_update_steps >= TRESH_STEPS:
                 obj_to_remove.append(i)
         for index in sorted(obj_to_remove, reverse=False):
+            color_to_use_AGAIN = self.EKFS[index].color
+            old_colors.append(color_to_use_AGAIN)
             del self.EKFS[index]
-        #        ekf.track = np.copy(ekf.x)
-        #        ekf.no_update_steps = 0
-                
         
+        for x in self.color:
+            old_colors.append(x)
+        self.color = iter(old_colors)
+        old_colors = []         
+    
+    
     def get_all_ants_data_as_array(self):
         ants = []
         for ekf in self.EKFS:
             ants.append(ekf.x)
         return np.array(ants)
     
+    
     def draw_tracks(self, H, ax, color = None):
         #color = iter(cm.rainbow(np.linspace(0, 1, len(self.EKFS))))
         for ekf in self.EKFS:
             # plot track
             track = np.array(ekf.track)
-            #speed = track[:,3][-1]
             c = ekf.color 
             x = ekf.x[0]
             y = ekf.x[1]
             a = ekf.x[2]
-            #print(f'a: {a}, x: {x}, y: {y}')
             delta_a = ekf.R[2][2]
-            #print(delta_a)
-            #print(a + delta_a, a - delta_a)
-            ax.arrow(x, y, ARROW_LEN * np.cos(a + delta_a), ARROW_LEN * np.sin(a + delta_a), color = c)
-            ax.arrow(x, y, ARROW_LEN * np.cos(a - delta_a), ARROW_LEN * np.sin(a - delta_a), color = c)
+            
+            #angle errors as arrows
+            #ax.arrow(x, y, ARROW_LEN * np.cos(a + delta_a), ARROW_LEN * np.sin(a + delta_a), color = c, ls = '--')
+            #ax.arrow(x, y, ARROW_LEN * np.cos(a - delta_a), ARROW_LEN * np.sin(a - delta_a), color = c, ls = '--')
+            
             ax.plot(track[:,0], track[:,1], color = c)
-            #ax.text(track[:,0] + 2, track[:,1] + 2, str(speed), color = c, fontsize='xx-small')
-            # plot end
+            # plot ellipse
             plot_covariance_ellipse((ekf.x[0], ekf.x[1]), ekf.P[0:2, 0:2], std=self.mahalanobis_thres, facecolor=c, alpha=0.2, xlim=(0,self.xlim), ylim=(self.ylim,0), ls=None, edgecolor=c)
-            # plot speed
-            # plot direction
+            #plot triangles
+            point_A = (x, y)
+            point_B = (x + ARROW_LEN * np.cos(a + delta_a), y + ARROW_LEN * np.sin(a + delta_a))
+            point_C = (x + ARROW_LEN * np.cos(a - delta_a), y + ARROW_LEN * np.sin(a - delta_a))
+            p = plt.Polygon((point_A, point_B, point_C), fill=True,closed=True, facecolor=c, alpha=0.2, edgecolor=c)
+            ax.add_patch(p)
+            
+    # plot speed
+    def draw_speed(self, ax, dt = 0.2, color = 'w', N = 3):
+        for ekf in self.EKFS:
+            x = [ekf.x[0]]
+            y = [ekf.x[1]]
+            a = [ekf.x[2]]
+            v = ekf.x[3]
+            w = ekf.x[4]
+            for i in range(N):
+                new_a = a[-1] + w * dt
+                new_x = x[-1] + v * np.cos(new_a) * dt
+                new_y = y[-1] + v * np.sin(new_a) * dt
+                a.append(new_a)
+                x.append(new_x)
+                y.append(new_y)
+            ax.plot(x, y, color = color, linestyle = '--')
+        
 
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import mahalanobis

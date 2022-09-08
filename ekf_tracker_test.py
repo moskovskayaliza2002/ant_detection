@@ -13,7 +13,7 @@ D_ANT_SYM = 'o'
 ANT_SCORE_MIN = 0.4
 MEKF = None
 R_diag = np.array([1.69, 3.76, 1.86])
-Q_diag = np.array([1, 1, 1, 3, 3])
+Q_diag = np.array([1, 1, 1, 2, 2])
 dt = 0.1
 mh = 20
 P_limit = np.inf
@@ -28,6 +28,7 @@ def proceed_frame(frame, W, H, ax):
     else:
         MEKF.proceed(ants)
     MEKF.draw_tracks(H, ax, 'r')
+    MEKF.draw_speed(ax)
 
 def get_ants(frame):
     ants = []
@@ -60,7 +61,7 @@ def plot_ants(ax, ants, H, color = D_ANT_COLOR):
     ants = get_ants(frame)                                
     for i in range(ants.shape[0]):
         ax.plot(ants[i,1], ants[i,2], color+D_ANT_SYM, alpha = ants[i,0])
-        ax.arrow(ants[i,1], ants[i,2], ARROW_LEN * np.cos(ants[i,3]), ARROW_LEN * np.sin(ants[i,3]), color = color, alpha = ants[i,0])
+        #ax.arrow(ants[i,1], ants[i,2], ARROW_LEN * np.cos(ants[i,3]), ARROW_LEN * np.sin(ants[i,3]), color = color, alpha = ants[i,0])
             
         
 
