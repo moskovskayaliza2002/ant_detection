@@ -207,8 +207,8 @@ def train_rcnn(num_epochs, root):
     
     #KEYPOINTS_FOLDER_TEST = root + '/test_data'
     #KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
-    KEYPOINTS_FOLDER_TEST = root + '/Test_while_train_data'
-    KEYPOINTS_FOLDER_TRAIN = root + '/Train_data'
+    KEYPOINTS_FOLDER_TEST = root + '/test_data' #'/Test_while_train_data'
+    KEYPOINTS_FOLDER_TRAIN = root + '/train_data' #'/Train_data'
     SAVING_WEIGHTS_PATH = root + '/rcnn_models/'
     
     if not os.path.exists(SAVING_WEIGHTS_PATH):
@@ -290,7 +290,7 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=30, help="Specify number of epoch", type=int)
+    parser.add_argument('num_epoch', nargs='?', default=7, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path
