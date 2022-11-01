@@ -3,7 +3,7 @@ from filterpy.kalman import ExtendedKalmanFilter
 from filterpy.stats import plot_covariance_ellipse
 from matplotlib.pyplot import cm
 
-MAX_AM_ANTS = 15
+MAX_AM_ANTS = 120
 TRESH_STEPS = 25
 ARROW_LEN = 50
 
@@ -38,19 +38,21 @@ class AntEKF(ExtendedKalmanFilter):
     Q_diag - [qx, qy, qa, qv, qw]
     dt - 1/fps
     '''
-    def __init__(self, start_x, p, R_diag, Q_diag, color, dt):
+    def __init__(self, start_x, p, R_diag, Q, color, dt):
         super(AntEKF, self).__init__(AntEKF.X_SIZE, AntEKF.Z_SIZE)
                 
         self.dt = dt 
         self.x = start_x
         self.P = np.eye(AntEKF.X_SIZE) #* (1 - p) # maybe not good idea
         self.R = np.diag(R_diag)
-        self.Q = np.diag(Q_diag)
+        self.Q = Q
+        #self.Q = np.diag(Q_diag)
         self.color = color
-        
+        self.error = []
         self.no_update_steps = 0
-        
         self.track = [np.copy(self.x)]
+        
+        self.old_real_val = np.array([])
                 
         
     def predict(self, u = 0):
@@ -77,9 +79,34 @@ class AntEKF(ExtendedKalmanFilter):
     '''
     new_value - [x, y, a]
     '''
-    def update2(self, new_value):
-        #z = np.array([new_value])
-        z = np.array(new_value)        
+    def update2(self, new_value, delta_t):
+        # err(self.x, new_value)
+        err_x = round(self.x[0] - new_value[0], 2)
+        err_y = round(self.x[1] - new_value[1], 2)
+        err_a = round(substract_angles(self.x[2], new_value[2]), 2)
+        #err_v = self.x[3] - new_value[3]
+        #err_w = self.x[4] - new_value[4]
+        real_v = real_w = 0
+        if len(self.old_real_val) != 0:
+            s = ((new_value[0] - self.old_real_val[0]) ** 2 + (new_value[1] - self.old_real_val[1]) ** 2) ** 0.5
+            real_v = round(s / delta_t, 2)
+            real_w = round((new_value[2] - self.old_real_val[2]) / delta_t, 2)
+        
+        pred_v = pred_w = 0
+        if len(self.track) >= 2:
+            s = ((self.x[0] - self.track[-2][0]) ** 2 + (self.x[1] - self.track[-2][1]) ** 2) ** 0.5
+            pred_v = round(s / delta_t, 2)
+            pred_w = round((self.x[2] - self.track[-2][2]) / delta_t, 2)
+        
+        err_v = round(pred_v - real_v, 2)
+        err_w = round(pred_w - real_w, 2)
+        
+        self.error.append([err_x, err_y, err_a, err_v, err_w])
+        self.old_real_val = new_value[:3]
+        #self.error.append([err_x, err_y, err_a, err_v, err_w])
+        
+        z = np.array(new_value[:3])    
+        #z = np.array(new_value)
         self.update(z, HJacobian = HJacobian, Hx = Hx, residual = residual)                        
         self.no_update_steps = 0
         # TODO: rewrite last history element
@@ -121,105 +148,118 @@ class multiEKF(object):
     mahalanobis_thres - mahalanobis disnace at which count ants the same
     P_limit - limitation for covariance, if it is higher - remove that filter
     '''
-    def __init__(self, start_values, R_diag, Q_diag, dt, mahalanobis_thres, P_limit, xlim, ylim):
+    def __init__(self, start_values, R_diag, Q, dt, mahalanobis_thres, P_limit, xlim, ylim):
         
         self.mahalanobis_thres = mahalanobis_thres
         
         self.R_diag = R_diag
-        self.Q_diag = Q_diag
+        self.Q = Q
+        #self.Q_diag = Q_diag
         #self.color = color
         self.dt = dt
         self.P_limit = P_limit
         self.xlim = xlim
         self.ylim = ylim
-        
         self.EKFS = []
+        self.deleted_ants_error = []
         self.color = iter(cm.rainbow(np.linspace(0, 1, MAX_AM_ANTS)))
         for i in range(start_values.shape[0]):
             c = next(self.color)
-            ekf = AntEKF(start_values[i][1:], start_values[i][0], self.R_diag, self.Q_diag, c, self.dt)                                    
+            ekf = AntEKF(start_values[i][1:], start_values[i][0], self.R_diag, self.Q, c, self.dt)                                    
             self.EKFS.append(ekf)                        
 
     '''
     new values - [[p, x, y, a, v, w]]
     '''
-    def proceed(self, new_values):
+    def proceed(self, new_values, dt):
         # 1. predict previous
         for ekf in self.EKFS:
             ekf.predict()
         
         # 2. calc correspondence
         old_values = self.get_all_ants_data_as_array()
-        
-        # with angles
-        #inv_covs = np.array([np.linalg.inv(ekf.P[:3,:3]) for ekf in self.EKFS])
-        #correspondence_matrix = multi_mahalanobis(new_values[:,1:4], old_values[:,:3], inv_covs)
-        
-        # without angles
-        inv_covs = np.array([np.linalg.inv(ekf.P[:2,:2]) for ekf in self.EKFS])
-        correspondence_matrix = multi_mahalanobis(new_values[:,1:3], old_values[:,:2], inv_covs)
-        
-        # store indexes of all ants, and then delete those which is taken for update, the rest will be new ants
-        new_objects = list(range(new_values.shape[0]))
-        
-        # 3. update where correspondence is
-        while True:
-            # find minimal value from matrix
-            minimal_distance = np.unravel_index(np.argmin(correspondence_matrix, axis=None), correspondence_matrix.shape)
+        if old_values.size != 0 and new_values.size != 0:
+            # with angles
+            #inv_covs = np.array([np.linalg.inv(ekf.P[:3,:3]) for ekf in self.EKFS])
+            #correspondence_matrix = multi_mahalanobis(new_values[:,1:4], old_values[:,:3], inv_covs)
             
-            if correspondence_matrix[minimal_distance] > self.mahalanobis_thres:
-                break # no more ants satisfy threshold
+            # without angles
+            inv_covs = np.array([np.linalg.inv(ekf.P[:2,:2]) for ekf in self.EKFS])
+            correspondence_matrix = multi_mahalanobis(new_values[:,1:3], old_values[:,:2], inv_covs)
             
-            ekf_ind = minimal_distance[1]
-            val_ind = minimal_distance[0]
+            # store indexes of all ants, and then delete those which is taken for update, the rest will be new ants
+            new_objects = list(range(new_values.shape[0]))
             
-            # update filter
-            self.EKFS[ekf_ind].update2(new_values[val_ind, 1:4])
-            
-            # 'remove' values from matrix
-            correspondence_matrix[val_ind,:] = np.inf
-            correspondence_matrix[:,ekf_ind] = np.inf
-            # and from 'new_objects'
-            new_objects.remove(val_ind)
-        
-        # 4. add new filters for new objects
-        for ind in new_objects:            
-            #new_x = np.zeros(5)
-            #new_x[:3] = new_values[ind][1:]
-            ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q_diag, next(self.color), self.dt)                                    
-            self.EKFS.append(ekf)
+            # 3. update where correspondence is
+            while True:
+                # find minimal value from matrix
+                minimal_distance = np.unravel_index(np.argmin(correspondence_matrix, axis=None), correspondence_matrix.shape)
                 
-        # 5. forget bad filters (long no update, huge covs, etc.) 
-        
-        ## huge cov
-        old_colors = []
-        if self.P_limit != np.inf:
-            filters_to_remove = []
-            for i, ekf in enumerate(self.EKFS):
-                if np.any(ekf.P[:2,:2] > self.P_limit):
-                    filters_to_remove.append(i)
+                if correspondence_matrix[minimal_distance] > self.mahalanobis_thres:
+                    break # no more ants satisfy threshold
+                
+                ekf_ind = minimal_distance[1]
+                val_ind = minimal_distance[0]
+                
                     
-            for index in sorted(filters_to_remove, reverse=True):
+                # update filter
+                self.EKFS[ekf_ind].update2(new_values[val_ind, 1:], dt) 
+                #self.EKFS[ekf_ind].update2(new_values[val_ind, 1:4])
+                
+                # 'remove' values from matrix
+                correspondence_matrix[val_ind,:] = np.inf
+                correspondence_matrix[:,ekf_ind] = np.inf
+                # and from 'new_objects'
+                new_objects.remove(val_ind)
+            
+            # 4. add new filters for new objects
+            for ind in new_objects:            
+                #new_x = np.zeros(5)
+                #new_x[:3] = new_values[ind][1:]
+                ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q, next(self.color), self.dt)                                    
+                self.EKFS.append(ekf)
+                    
+            # 5. forget bad filters (long no update, huge covs, etc.) 
+            
+            ## huge cov
+            old_colors = []
+            if self.P_limit != np.inf:
+                filters_to_remove = []
+                for i, ekf in enumerate(self.EKFS):
+                    if np.any(ekf.P[:2,:2] > self.P_limit):
+                        filters_to_remove.append(i)
+                        
+                for index in sorted(filters_to_remove, reverse=True):
+                    color_to_use_AGAIN = self.EKFS[index].color
+                    old_colors.append(color_to_use_AGAIN)
+                    #self.deleted_ants_error.append(self.EKFS[index].error)
+                    for err in self.EKFS[index].error:
+                        self.deleted_ants_error.append(err)
+                        #for er in err:
+                        #    self.deleted_ants_error.append(er)
+                    del self.EKFS[index]
+                    
+                    
+            ## too long not update
+            obj_to_remove = []
+            for i, ekf in enumerate(self.EKFS):
+                #print(f'Муравей {i} цвета {ekf.color} не обновлялся шагов: {ekf.no_update_steps}')
+                if ekf.no_update_steps >= TRESH_STEPS:
+                    obj_to_remove.append(i)
+            for index in sorted(obj_to_remove, reverse=True):
                 color_to_use_AGAIN = self.EKFS[index].color
                 old_colors.append(color_to_use_AGAIN)
+                #self.deleted_ants_error.append(self.EKFS[index].error)
+                for err in self.EKFS[index].error:
+                    self.deleted_ants_error.append(err)
+                    #for er in err:
+                    #    self.deleted_ants_error.append(er)
                 del self.EKFS[index]
-                
-                
-        ## too long not update
-        obj_to_remove = []
-        for i, ekf in enumerate(self.EKFS):
-            #print(f'Муравей {i} цвета {ekf.color} не обновлялся шагов: {ekf.no_update_steps}')
-            if ekf.no_update_steps >= TRESH_STEPS:
-                obj_to_remove.append(i)
-        for index in sorted(obj_to_remove, reverse=False):
-            color_to_use_AGAIN = self.EKFS[index].color
-            old_colors.append(color_to_use_AGAIN)
-            del self.EKFS[index]
-        
-        for x in self.color:
-            old_colors.append(x)
-        self.color = iter(old_colors)
-        old_colors = []         
+            
+            for x in self.color:
+                old_colors.append(x)
+            self.color = iter(old_colors)
+            old_colors = []         
     
     
     def get_all_ants_data_as_array(self):
