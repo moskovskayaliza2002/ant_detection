@@ -241,7 +241,7 @@ def cropper(new_root_path, old_root_path, overlay_w, overlay_h):
             os.mkdir(i) 
     
     #c count + 1 начнется нумерация
-    count = 1216
+    count = -1
     for f in os.scandir(old_root_path + '/images'):
         if f.is_file() and f.path.split('.')[-1].lower() == 'png':
             original_image = cv2.imread(f.path)
@@ -256,8 +256,8 @@ def cropper(new_root_path, old_root_path, overlay_w, overlay_h):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('old_root', nargs='?', default='/home/ubuntu/ant_detection/new_video', help="Specify directory with old dataset, there should be such folders as images, keypoints and bboxes", type=str)
-    parser.add_argument('new_root', nargs='?', default='/home/ubuntu/ant_detection/new_video/resized', help="Specify path for new data directory", type=str)
+    parser.add_argument('old_root', nargs='?', default='/home/ubuntu/ant_detection/real_im_annot/train_data', help="Specify directory with old dataset, there should be such folders as images, keypoints and bboxes", type=str)
+    parser.add_argument('new_root', nargs='?', default='/home/ubuntu/ant_detection/real_im_annot/train_data/crop', help="Specify path for new data directory", type=str)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
     args = parser.parse_args()

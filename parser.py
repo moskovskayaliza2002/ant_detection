@@ -212,7 +212,7 @@ def create_dataset(root_path, json_path): # Не рабочая функция
     head_list, abdomen_list, bboxes_list = read_json(json_path)
     head_list, abdomen_list, bboxes_list = correct_comparison(head_list, abdomen_list, bboxes_list)
     keypoints = join_keypoints(head_list, abdomen_list)
-    real_im_number = 0
+    real_im_number = 243
     for i in reversed(range(dir_size)):
         bb_filename = bboxes_path + '/bbox' + str(real_im_number) + '.txt'
         write_txt(bboxes_list[i], bb_filename)
@@ -224,8 +224,8 @@ def create_dataset(root_path, json_path): # Не рабочая функция
 if __name__ == '__main__':
     #root_path - is a forder, where folger with images and a json file with annotation lies. it will create there two folders for bboxes amd keypoints txt files.
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/new_video', help="Specify directory to create dataset", type=str)
-    parser.add_argument('json_path', nargs='?', default='/home/ubuntu/ant_detection/new_video/polygon.json', help="Specify path to json file", type=str)
+    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/real_im_annot/from_here_only_polygons', help="Specify directory to create dataset", type=str)
+    parser.add_argument('json_path', nargs='?', default='/home/ubuntu/ant_detection/real_im_annot/from_here_only_polygons/annot.json', help="Specify path to json file", type=str)
     args = parser.parse_args()
     ROOT = args.root_path
     JSON = args.json_path

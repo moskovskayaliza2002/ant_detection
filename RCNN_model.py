@@ -289,7 +289,7 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay', help="Specify main directory", type=str)
+    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/polygon_data', help="Specify main directory", type=str)
     parser.add_argument('num_epoch', nargs='?', default=15, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
