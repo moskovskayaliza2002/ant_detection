@@ -81,7 +81,7 @@ def sort_bboxes(scores, bboxes):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     file_ = 'cut50s'
-    parser.add_argument('--test_path', nargs='?', default='/home/ubuntu/ant_detection/polygon_data/Test_data', help="path to folder with images and annot", type=str)
+    parser.add_argument('--test_path', nargs='?', default='/home/ubuntu/ant_detection/test_on_article_data', help="path to folder with images and annot", type=str)
     parser.add_argument('--iuo_tresh', nargs='?', default=0.5, help="treshold for TP and FP", type=float)
     parser.add_argument('--model_path', nargs='?', default='/home/ubuntu/ant_detection/polygon_data/rcnn_models/20221102-124538/full_weights.pth', help="path to weights", type=str)
     parser.add_argument('conf_threshold', nargs='?', default=0.4, help="Confident threshold for boxes", type=float)
