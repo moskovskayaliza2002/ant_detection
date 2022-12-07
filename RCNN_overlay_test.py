@@ -16,7 +16,7 @@ from collections import OrderedDict
 def get_out_kp_bb(out, left_x, left_y, conf_threshold, iou_threshold):
     # Функция для маштабирования предказанных координат на новый диапазон
     scores = out[0]['scores'].detach().cpu().numpy()
-    high_scores_idxs = np.where(scores > conf_threshold)[0].tolist() # Indexes of boxes with scores > 0.7
+    high_scores_idxs = np.where(scores > conf_threshold)[0].tolist() # Indexes of boxes with scores > conf_threshold
     post_nms_idxs = torchvision.ops.nms(out[0]['boxes'][high_scores_idxs], out[0]['scores'][high_scores_idxs], iou_threshold).cpu().numpy() # Indexes of boxes left after applying NMS (iou_threshold=0.3)
     
     my_scores = out[0]['scores'][high_scores_idxs][post_nms_idxs].detach().cpu().numpy()
@@ -39,7 +39,7 @@ def get_out_kp_bb(out, left_x, left_y, conf_threshold, iou_threshold):
 
 def visualize(image, bboxes, keypoints, scores, image_original=None, bboxes_original=None, keypoints_original=None, show_flag = True):
     # Рисует на изображении предсказанные и настоящие боксы и ключевые точки.
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) # !!!!! ВОЗМОЖНО НУЖНО УДАЛИТЬ !!!!!
+    #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) # !!!!! ВОЗМОЖНО НУЖНО УДАЛИТЬ !!!!!
     fontsize = 12
     keypoints_classes_ids2names = {0: 'A', 1: 'H'}
     for idx, bbox in enumerate(bboxes):
@@ -457,12 +457,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA/images/0a302e52-image202.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/test_on_article_data/images/image3.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/polygon_data/rcnn_models/20221102-124538/full_weights.pth', help="Specify weights path", type=str)
+    parser.add_argument('test_data_path', nargs='?', default="/home/ubuntu/Downloads/img001.jpg", help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/rcnn_models/20221122-145907/best_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('draw_targets', nargs='?', default=False, help="True - will draw targets, False - will not", type=bool)
-    parser.add_argument('conf_threshold', nargs='?', default=0.4, help="Confident threshold for boxes", type=float)
-    parser.add_argument('nms_threshold', nargs='?', default=0.6, help="Non maximum suppression threshold for boxes", type=float)
-    parser.add_argument('iou_threshold', nargs='?', default=0.5, help="IOU threshold for boxes", type=float)
+    parser.add_argument('conf_threshold', nargs='?', default=0.6, help="Confident threshold for boxes", type=float)
+    parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes", type=float)
+    parser.add_argument('iou_threshold', nargs='?', default=0.2, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
     
@@ -490,7 +490,7 @@ if __name__ == '__main__':
         
     test_model = get_model(2, model_path)
     
-    if test_data_path[-3:] == 'png':
+    if test_data_path[-3:] == 'png' or test_data_path[-3:] == 'jpg':
         print('*********Обработка единственного изображения*********')
         one_image_test(test_data_path, test_model, device, draw_targets, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h)
     elif test_data_path[-3:] == 'mp4' or test_data_path[-3:] == 'MOV':

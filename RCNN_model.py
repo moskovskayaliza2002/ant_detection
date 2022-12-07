@@ -232,7 +232,7 @@ def train_rcnn(num_epochs, root):
     
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.SGD(params, lr=0.001, momentum=0.9, weight_decay=0.0005)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.3)
+    #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.3)
     
     all_clas_loss = []
     all_bbox_loss = []
@@ -267,7 +267,7 @@ def train_rcnn(num_epochs, root):
         plt.gcf().canvas.draw_idle()
         plt.gcf().canvas.start_event_loop(0.3)
 
-        lr_scheduler.step()
+        #lr_scheduler.step()
         
         #validation_loss  = evaluate_loss(model, data_loader_test, device=device)
         #print(f"validation_loss: {validation_loss}")
@@ -289,8 +289,8 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/polygon_data', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=15, help="Specify number of epoch", type=int)
+    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/dataset', help="Specify main directory", type=str)
+    parser.add_argument('num_epoch', nargs='?', default=50, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path

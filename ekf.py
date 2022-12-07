@@ -2,9 +2,10 @@ import numpy as np
 from filterpy.kalman import ExtendedKalmanFilter
 from filterpy.stats import plot_covariance_ellipse
 from matplotlib.pyplot import cm
+import yaml
+from collections import OrderedDict
 
-MAX_AM_ANTS = 120
-TRESH_STEPS = 25
+MAX_AM_ANTS = 150
 ARROW_LEN = 50
 
 def HJacobian(x):
@@ -25,6 +26,20 @@ def residual(a, b):
     y[2] = substract_angles(a[2], b[2])
     return y
 
+
+class TrackState:
+    
+    Unconfirmed = 1
+    Confirmed = 2
+    Deleted = 3
+    # number of hitting steps to become confirmed
+    Conf_steps = 3
+    # number of no_update_steps to become deleted
+    Unconf_steps = 6
+    # number of no_update_steps to turn confirmed ants to deleted
+    Del_conf_steps = 25
+    
+    
 class AntEKF(ExtendedKalmanFilter):
     # dim_x: x, y, a, v, w    
     X_SIZE = 5
@@ -38,7 +53,7 @@ class AntEKF(ExtendedKalmanFilter):
     Q_diag - [qx, qy, qa, qv, qw]
     dt - 1/fps
     '''
-    def __init__(self, start_x, p, R_diag, Q, color, dt):
+    def __init__(self, start_x, p, R_diag, Q, color, dt, frame_ind):
         super(AntEKF, self).__init__(AntEKF.X_SIZE, AntEKF.Z_SIZE)
                 
         self.dt = dt 
@@ -49,8 +64,12 @@ class AntEKF(ExtendedKalmanFilter):
         #self.Q = np.diag(Q_diag)
         self.color = color
         self.error = []
-        self.no_update_steps = 0
+
         self.track = [np.copy(self.x)]
+        self.track_state = TrackState.Unconfirmed
+        self.hits = 1
+        self.no_update_steps = 0
+        self.frame_idx = frame_ind
         
         self.old_real_val = np.array([])
                 
@@ -61,8 +80,8 @@ class AntEKF(ExtendedKalmanFilter):
         self.x[0] = self.x[0] + self.x[3] * np.cos(self.x[2]) * self.dt
         self.x[1] = self.x[1] + self.x[3] * np.sin(self.x[2]) * self.dt
         self.x[2] = self.x[2] + self.x[4] * self.dt
-        self.x[3] = self.x[3] # no change
-        self.x[4] = self.x[4] # no change
+        self.x[3] = self.x[3] * 0.9 ** self.no_update_steps
+        self.x[4] = self.x[4] * 0.9 ** self.no_update_steps
         
         self.F = np.array([[1, 0, -np.sin(self.x[2]) * self.x[3] * self.dt, np.cos(self.x[2]) * self.dt, 0],
                       [0, 1, np.cos(self.x[2]) * self.x[3] * self.dt, np.sin(self.x[2]) * self.dt, 0],
@@ -107,10 +126,19 @@ class AntEKF(ExtendedKalmanFilter):
         
         z = np.array(new_value[:3])    
         #z = np.array(new_value)
-        self.update(z, HJacobian = HJacobian, Hx = Hx, residual = residual)                        
+        self.update(z, HJacobian = HJacobian, Hx = Hx, residual = residual)   
+        self.hits += 1
         self.no_update_steps = 0
+        if self.frame_idx == 1:
+            self.track_state = TrackState.Confirmed
+        if self.track_state == TrackState.Unconfirmed and self.hits >= TrackState.Conf_steps:
+            self.track_state = TrackState.Confirmed
         # TODO: rewrite last history element
         self.track[-1] = np.copy(self.x)
+        
+    def is_confirmed(self):
+        """Returns True if this track is confirmed."""
+        return self.track_state == TrackState.Confirmed
 
         
 '''
@@ -148,7 +176,7 @@ class multiEKF(object):
     mahalanobis_thres - mahalanobis disnace at which count ants the same
     P_limit - limitation for covariance, if it is higher - remove that filter
     '''
-    def __init__(self, start_values, R_diag, Q, dt, mahalanobis_thres, P_limit, xlim, ylim):
+    def __init__(self, start_values, R_diag, Q, dt, mahalanobis_thres, P_limit, xlim, ylim, frame_ind):
         
         self.mahalanobis_thres = mahalanobis_thres
         
@@ -162,16 +190,17 @@ class multiEKF(object):
         self.ylim = ylim
         self.EKFS = []
         self.deleted_ants_error = []
+        self.deleted_conf_ants = []
         self.color = iter(cm.rainbow(np.linspace(0, 1, MAX_AM_ANTS)))
         for i in range(start_values.shape[0]):
             c = next(self.color)
-            ekf = AntEKF(start_values[i][1:], start_values[i][0], self.R_diag, self.Q, c, self.dt)                                    
+            ekf = AntEKF(start_values[i][1:], start_values[i][0], self.R_diag, self.Q, c, self.dt, frame_ind)                                    
             self.EKFS.append(ekf)                        
-
+    
     '''
     new values - [[p, x, y, a, v, w]]
     '''
-    def proceed(self, new_values, dt):
+    def proceed(self, new_values, dt, frame_ind):
         # 1. predict previous
         for ekf in self.EKFS:
             ekf.predict()
@@ -203,8 +232,7 @@ class multiEKF(object):
                 
                     
                 # update filter
-                self.EKFS[ekf_ind].update2(new_values[val_ind, 1:], dt) 
-                #self.EKFS[ekf_ind].update2(new_values[val_ind, 1:4])
+                self.EKFS[ekf_ind].update2(new_values[val_ind, 1:], dt)
                 
                 # 'remove' values from matrix
                 correspondence_matrix[val_ind,:] = np.inf
@@ -212,17 +240,35 @@ class multiEKF(object):
                 # and from 'new_objects'
                 new_objects.remove(val_ind)
             
+            # reset the number of consecutive comparisons
+            for ekf in self.EKFS:
+                if ekf.no_update_steps != 0:
+                    ekf.hits = 0
+                    
             # 4. add new filters for new objects
             for ind in new_objects:            
                 #new_x = np.zeros(5)
                 #new_x[:3] = new_values[ind][1:]
-                ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q, next(self.color), self.dt)                                    
+                ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q, next(self.color), self.dt, frame_ind)                                    
                 self.EKFS.append(ekf)
                     
             # 5. forget bad filters (long no update, huge covs, etc.) 
             
-            ## huge cov
+            
+            #delete unconfirmed_tracks
             old_colors = []
+            unconf_tracks = []
+            for i, ekf in enumerate(self.EKFS):
+                if not ekf.is_confirmed() and ekf.no_update_steps >= TrackState.Unconf_steps:
+                    #ekf.track_state = TrackState.Deleted
+                    unconf_tracks.append(i)
+            for index in sorted(unconf_tracks, reverse=True):
+                color_to_use_AGAIN = self.EKFS[index].color
+                old_colors.append(color_to_use_AGAIN)
+                del self.EKFS[index]
+                    
+                
+            ## huge cov
             if self.P_limit != np.inf:
                 filters_to_remove = []
                 for i, ekf in enumerate(self.EKFS):
@@ -244,8 +290,11 @@ class multiEKF(object):
             obj_to_remove = []
             for i, ekf in enumerate(self.EKFS):
                 #print(f'Муравей {i} цвета {ekf.color} не обновлялся шагов: {ekf.no_update_steps}')
-                if ekf.no_update_steps >= TRESH_STEPS:
+                if ekf.no_update_steps >= TrackState.Del_conf_steps:
                     obj_to_remove.append(i)
+                    if ekf.is_confirmed:
+                        ekf.track = ekf.track[:-1 * TrackState.Del_conf_steps]
+                        self.deleted_conf_ants.append(ekf)
             for index in sorted(obj_to_remove, reverse=True):
                 color_to_use_AGAIN = self.EKFS[index].color
                 old_colors.append(color_to_use_AGAIN)
@@ -279,11 +328,11 @@ class multiEKF(object):
             y = ekf.x[1]
             a = ekf.x[2]
             delta_a = ekf.R[2][2]
-            
+                
             #angle errors as arrows
             #ax.arrow(x, y, ARROW_LEN * np.cos(a + delta_a), ARROW_LEN * np.sin(a + delta_a), color = c, ls = '--')
             #ax.arrow(x, y, ARROW_LEN * np.cos(a - delta_a), ARROW_LEN * np.sin(a - delta_a), color = c, ls = '--')
-            
+                
             ax.plot(track[:,0], track[:,1], color = c)
             # plot ellipse
             plot_covariance_ellipse((ekf.x[0], ekf.x[1]), ekf.P[0:2, 0:2], std=self.mahalanobis_thres, facecolor=c, alpha=0.2, xlim=(0,self.xlim), ylim=(self.ylim,0), ls=None, edgecolor=c)
@@ -310,6 +359,22 @@ class multiEKF(object):
                 x.append(new_x)
                 y.append(new_y)
             ax.plot(x, y, color = color, linestyle = '--')
+    
+    def write_tracks(self, yml_filename):
+        yaml_data = []
+        #yaml.dump(OrderedDict({'name': filename, 'FPS': fps, 'weight': w, 'height': h}), f)
+        for ekf in self.EKFS:
+            if ekf.is_confirmed:
+                yaml_data.append(OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()}))
+                #yaml.dump(OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()}), f)
+                    
+        for ekf in self.deleted_conf_ants:
+            yaml_data.append(OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()}))
+            #yaml.dump(OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track[:-TrackState.Del_conf_steps]).tolist()}), f)
+        data = OrderedDict({'trackes': yaml_data})
+        with open(yml_filename, 'w') as f:
+            yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
+            yaml.dump(data, f)
         
 
 import matplotlib.pyplot as plt

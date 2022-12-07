@@ -12,27 +12,26 @@ import shutil
 ARROW_LEN = 50
 D_ANT_COLOR = 'w'
 D_ANT_SYM = 'o'
-ANT_SCORE_MIN = 0.8
+ANT_SCORE_MIN = 0.75
 MEKF = None
 R_diag = np.array([1.69, 3.76, 1.86])
 l = 0.00001
 
+Q = np.array([[5, 0, 0, 0, 0], 
+              [0, 5, 0, 0, 0],
+              [0, 0, 5, 0, 0],
+              [0, 0, 0, 10, 0],
+              [0, 0, 0, 0, 10]])
 '''
-Q = np.array([[10, 0, 0, 0, 0], 
-              [0, 10, 0, 0, 0],
-              [0, 0, 10, 0, 0],
-              [0, 0, 0, 20, 0],
-              [0, 0, 0, 0, 20]])
-'''
-
 Q = np.array([[2.63795021e+00, 4.31565031e-02, 4.34318028e-03, -2.20547258e+00, 2.13165056e-01],
               [4.31565031e-02, 2.17205029e+00, -2.80823458e-03, -8.82016377e+00, -7.06690445e-02],
               [4.34318028e-03, -2.80823458e-03, 2.03181860e-02, 4.16669103e-02, 4.60097662e-01],
               [-2.20547258e+00, -8.82016377e+00, 4.16669103e-02, 2.16764535e+03, -1.92685776e-01],
               [2.13165056e-01, -7.06690445e-02, 4.60097662e-01, -1.92685776e-01, 1.41432123e+01]])
+'''
 #Q_diag = np.array([l, l, l, l, l])
 dt = 0.1
-mh = 10
+mh = 12
 P_limit = np.inf
 
 def proceed_frame(frame, W, H, ax, dt):
@@ -41,9 +40,9 @@ def proceed_frame(frame, W, H, ax, dt):
     plot_ants(ax, ants, H, dt)
     
     if MEKF is None:
-        MEKF = multiEKF(ants, R_diag,  Q, dt, mh, P_limit, W, H)
+        MEKF = multiEKF(ants, R_diag,  Q, dt, mh, P_limit, W, H, int(frame['frame']))
     else:
-        MEKF.proceed(ants, dt)
+        MEKF.proceed(ants, dt, int(frame['frame']))
     MEKF.draw_tracks(H, ax, 'r')
     MEKF.draw_speed(ax)
 
@@ -120,12 +119,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     
     #file_ = 'cut6s'
-    file_ = 'cut50s'
+    #file_ = 'cut50s'
     #file_ = 'empty_center'
+    file_ = "18.08.20 Fp2' плос2"
     
-    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/inputs/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
-    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/inputs/{file_}.mp4', help="Full path to video file", type=str)
+    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/dynamic_density/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
+    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/dynamic_density/{file_}.mp4', help="Full path to video file", type=str)
     parser.add_argument('--pic_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/frames_track', help="Full path to directory to save frames", type=str)
+    parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
     args = parser.parse_args()
     print(f"Loading data from {args.yaml_path}...")
     ANT_DATA = read_yaml(args.yaml_path)    
@@ -141,7 +142,9 @@ if __name__ == '__main__':
     cap = cv2.VideoCapture(args.video_path)        
     maxim_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     count = 1
-    fig, ax = plt.subplots()      
+    fig, ax = plt.subplots()  
+    plt.ion()
+    plt.show(block=False)
     for frame in ANT_DATA['frames']:                          
         ax.clear()
         #print('Frame:', count, '/', maxim_frames)
@@ -160,6 +163,7 @@ if __name__ == '__main__':
         plt.pause(0.1)
         #plt.show()
         
+    MEKF.write_tracks(args.tracks_save_path)
         
     all_errors = []
     for ekf in MEKF.EKFS:

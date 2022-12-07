@@ -135,16 +135,20 @@ def resize_bboxes_kps(bboxes, kps, left_x, left_y, right_x, right_y):
     new_list_kps = []
     k = 0
     flag = True
-    neg = 0
+    #neg = 0
+    nouse_ant = 0
     for i in range(len(bboxes)):
         # [xmin, ymin, xmax, ymax]
         ymin, xmin, ymax, xmax = bboxes[i][1], bboxes[i][0], bboxes[i][3], bboxes[i][2]
         
         # проверка на то, что границы не пересекают муравья
-        if (ymin < left_y < ymax or ymin < right_y < ymax) and (xmax > left_x and xmin < right_x):
+        if ((ymin < left_y < ymax or ymin < right_y < ymax) and (xmax > left_x and xmin < right_x)) or ((xmin < left_x < xmax or xmin < right_x < xmax) and (ymax > left_y and ymin < right_y)):
             flag = False
-        if (xmin < left_x < xmax or xmin < right_x < xmax) and (ymax > left_y and ymin < right_y): #left_y < ymin < right_y:
-            flag = False
+            nouse_ant += 1
+        else:
+            flag = True
+        #if (xmin < left_x < xmax or xmin < right_x < xmax) and (ymax > left_y and ymin < right_y): #left_y < ymin < right_y:
+        #    flag = False
         # проверка на то, что это не бокс за границей обрезанной области
         if flag == True and not(xmax <= left_x or ymax <= left_y or ymin >= right_y or xmin >= right_x):
             #new_list_bboxes.append([xmin - left_x, ymin - left_y, xmax - left_x, ymax - left_y])
@@ -159,7 +163,7 @@ def resize_bboxes_kps(bboxes, kps, left_x, left_y, right_x, right_y):
             y_s = conv_y(ymax, left_y, 0, right_y, 300)
             new_list_bboxes.append([x_f, y_f, x_s, y_s])
             l = [x_f, y_f, x_s, y_s]
-            neg += sum([num for num in l if num < 0])
+            #neg += sum([num for num in l if num < 0])
             #x_a = conv_x(kps[i][0] - left_x, left_x, 0, right_x, 300)
             #y_a = conv_y(kps[i][1] - left_y, left_y, 0, right_y, 300)
             #x_h = conv_x(kps[i][2] - left_x, left_x, 0, right_x, 300)
@@ -171,15 +175,15 @@ def resize_bboxes_kps(bboxes, kps, left_x, left_y, right_x, right_y):
             new_list_kps.append([x_a, y_a, x_h, y_h])
             #new_list_kps.append([x_a - left_x, y_a - left_y, x_h - left_x, y_h - left_y])
             k += 1
-    print(f"Negative numbers {neg}")
-    return k, new_list_bboxes, new_list_kps
+    #print(f"Negative numbers {neg}")
+    return k, nouse_ant, new_list_bboxes, new_list_kps
 
 
 def verification(bboxes, kp, l1, l2, r1, r2, crop_w, crop_h, delta_w, delta_h, s_path, counter):
-    l1_ants_counter, l1_bb, l1_kps = resize_bboxes_kps(bboxes, kp, 0, 0, crop_w + delta_w, crop_h + delta_h)
+    l1_ants_counter, l1_noise, l1_bb, l1_kps = resize_bboxes_kps(bboxes, kp, 0, 0, crop_w + delta_w, crop_h + delta_h)
     #neg_nos = [num for num in l1_bb if num < 0]
     #print("Negative numbers in l1: ", *neg_nos)
-    if l1_ants_counter != 0:
+    if l1_ants_counter != 0 and l1_noise == 0:
         print('l1')
         print(counter + 1)
         resized_l1 = cv2.resize(l1, (300, 300), interpolation = cv2.INTER_AREA)
@@ -188,10 +192,10 @@ def verification(bboxes, kp, l1, l2, r1, r2, crop_w, crop_h, delta_w, delta_h, s
         write_bbox(l1_kps, s_path + '/keypoints' + '/keypoint' + str(counter + 1) + '.txt')
         counter += 1
     
-    l2_ants_counter, l2_bb, l2_kps = resize_bboxes_kps(bboxes, kp, 0, crop_h - delta_h, crop_w + delta_w, 2 * crop_h)
+    l2_ants_counter, l2_noise, l2_bb, l2_kps = resize_bboxes_kps(bboxes, kp, 0, crop_h - delta_h, crop_w + delta_w, 2 * crop_h)
     #neg_nos = [num for num in l2_bb if num < 0]
     #print("Negative numbers in l2: ", *neg_nos)
-    if l2_ants_counter != 0:
+    if l2_ants_counter != 0 and l2_noise == 0:
         print('l2')
         print(counter + 1)
         resized_l2 = cv2.resize(l2, (300, 300), interpolation = cv2.INTER_AREA)
@@ -200,10 +204,10 @@ def verification(bboxes, kp, l1, l2, r1, r2, crop_w, crop_h, delta_w, delta_h, s
         write_bbox(l2_kps, s_path + '/keypoints' + '/keypoint' + str(counter + 1) + '.txt')
         counter += 1
     
-    r1_ants_counter, r1_bb, r1_kps = resize_bboxes_kps(bboxes, kp, crop_w - delta_w, 0, 2 * crop_w, crop_h + delta_h)
+    r1_ants_counter, r1_noise, r1_bb, r1_kps = resize_bboxes_kps(bboxes, kp, crop_w - delta_w, 0, 2 * crop_w, crop_h + delta_h)
     #neg_nos = [num for num in r1_bb if num < 0]
     #print("Negative numbers in r1: ", *neg_nos)
-    if r1_ants_counter != 0:
+    if r1_ants_counter != 0 and r1_noise == 0:
         print('r1')
         print(counter + 1)
         resized_r1 = cv2.resize(r1, (300, 300), interpolation = cv2.INTER_AREA)
@@ -212,10 +216,10 @@ def verification(bboxes, kp, l1, l2, r1, r2, crop_w, crop_h, delta_w, delta_h, s
         write_bbox(r1_kps, s_path + '/keypoints' + '/keypoint' + str(counter + 1) + '.txt')
         counter += 1
     
-    r2_ants_counter, r2_bb, r2_kps = resize_bboxes_kps(bboxes, kp, crop_w - delta_w, crop_h - delta_h, 2 * crop_w, 2 * crop_h)
+    r2_ants_counter, r2_noise, r2_bb, r2_kps = resize_bboxes_kps(bboxes, kp, crop_w - delta_w, crop_h - delta_h, 2 * crop_w, 2 * crop_h)
     #neg_nos = [num for num in r2_bb if num < 0]
     #print("Negative numbers in r2: ", *neg_nos)
-    if r2_ants_counter != 0:
+    if r2_ants_counter != 0 and r2_noise == 0:
         print('r2')
         print(counter + 1)
         resized_r2 = cv2.resize(r2, (300, 300), interpolation = cv2.INTER_AREA)
@@ -256,8 +260,8 @@ def cropper(new_root_path, old_root_path, overlay_w, overlay_h):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('old_root', nargs='?', default='/home/ubuntu/ant_detection/real_im_annot/train_data', help="Specify directory with old dataset, there should be such folders as images, keypoints and bboxes", type=str)
-    parser.add_argument('new_root', nargs='?', default='/home/ubuntu/ant_detection/real_im_annot/train_data/crop', help="Specify path for new data directory", type=str)
+    parser.add_argument('old_root', nargs='?', default='/home/ubuntu/ant_detection/dataset/Train_data', help="Specify directory with old dataset, there should be such folders as images, keypoints and bboxes", type=str)
+    parser.add_argument('new_root', nargs='?', default='/home/ubuntu/ant_detection/dataset/Train_data/crop', help="Specify path for new data directory", type=str)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
     args = parser.parse_args()

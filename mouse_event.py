@@ -41,7 +41,7 @@ def show_polygon(im, coords, yml_path, v_path):
     thickness = 3
     image = cv2.polylines(im, [pts], isClosed, color, thickness)
     
-    print("Нажмите Esс чтобы не сохранять координаты и Enter чтобы сохранить")
+    print("INFO: Нажмите Esс чтобы не сохранять координаты и Enter чтобы сохранить")
     while(1):
         cv2.imshow('polygon', image)
         next_step = cv2.waitKey(0)
@@ -56,8 +56,8 @@ def show_polygon(im, coords, yml_path, v_path):
 if __name__ == '__main__':
     print("INFO: двойной клик левой кнопкой мыши поставит точку, двойной клик колесика отменит последнюю нарисованную точку")
     parser = argparse.ArgumentParser()
-    parser.add_argument('--video_path', nargs='?', default='/home/ubuntu/ant_detection/dynamic_density/cut6s_pred.mp4', help="path to video for dynamic density analysis", type=str)
-    parser.add_argument('--yaml_path', nargs='?', default='/home/ubuntu/ant_detection/dynamic_density/coods.yml', help="outputfile path with coordinates of rectangle points", type=str)
+    parser.add_argument('--video_path', nargs='?', default="/home/ubuntu/ant_detection/dynamic_density/cut50s.mp4", help="path to video for dynamic density analysis", type=str)
+    parser.add_argument('--yaml_path', nargs='?', default='/home/ubuntu/ant_detection/dynamic_density/coods_50s.yml', help="outputfile path with coordinates of rectangle points", type=str)
     ##path = '/home/ubuntu/ant_detection/polygon_data/Test_data/images/image446.png'
     args = parser.parse_args()
     
@@ -87,5 +87,4 @@ if __name__ == '__main__':
         if len(coords) == 4:
             show_polygon(frame, coords, args.yaml_path, args.video_path)
         print(coords)
-    
     
