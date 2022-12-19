@@ -3,6 +3,7 @@ from overlay_intersection import read_boxes, write_bbox, find_bbox, find_kp, res
 import os
 import cv2
 import shutil
+import argparse
 
 class Sizes:
     
@@ -48,8 +49,13 @@ def vis_check(im, bboxes, keypoints):
     cv2.destroyAllWindows()
     
 if __name__ == '__main__':
-    new_root_path = '/home/ubuntu/ant_detection/dataset/augmentation'
-    old_root_path = '/home/ubuntu/ant_detection/real_im_annot'
+    parser.add_argument('new_root_path', nargs='?', default="/home/ubuntu/ant_detection/dataset/augmentation", help="Specify the path to the folder to create new data", type=str)
+    parser.add_argument('old_root_path', nargs='?', default="/home/ubuntu/ant_detection/real_im_annot", help="Specify the path to the folder to original data", type=str)
+    args = parser.parse_args()
+    new_root_path = args.new_root_path
+    old_root_path = args.old_root_path
+    #new_root_path = '/home/ubuntu/ant_detection/dataset/augmentation'
+    #old_root_path = '/home/ubuntu/ant_detection/real_im_annot'
     new_keypoints_path = new_root_path + '/keypoints'
     new_bboxes_path = new_root_path + '/bboxes'
     new_images_path = new_root_path + '/images'

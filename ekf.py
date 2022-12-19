@@ -139,6 +139,14 @@ class AntEKF(ExtendedKalmanFilter):
     def is_confirmed(self):
         """Returns True if this track is confirmed."""
         return self.track_state == TrackState.Confirmed
+    
+    def check_color(self):
+        if self.track_state == TrackState.Confirmed:
+            self.color = 'g' #зеленый
+        elif self.track_state == TrackState.Unconfirmed:
+            self.color = 'r' #желтый
+        elif self.track_state == TrackState.Deleted:
+            self.color = 'b' #красный
 
         
 '''
@@ -165,6 +173,12 @@ def multi_mahalanobis(x, y, Sm):
     
     return D
 
+
+def euclidean_distance(a, b):
+    P = np.add.outer(np.sum(a**2, axis=1), np.sum(b**2, axis=1))
+    N = np.dot(a, b.T)
+    return np.sqrt(P - 2*N)
+    
 
 class multiEKF(object):
         
@@ -213,8 +227,11 @@ class multiEKF(object):
             #correspondence_matrix = multi_mahalanobis(new_values[:,1:4], old_values[:,:3], inv_covs)
             
             # without angles
-            inv_covs = np.array([np.linalg.inv(ekf.P[:2,:2]) for ekf in self.EKFS])
-            correspondence_matrix = multi_mahalanobis(new_values[:,1:3], old_values[:,:2], inv_covs)
+            #inv_covs = np.array([np.linalg.inv(ekf.P[:2,:2]) for ekf in self.EKFS])
+            #correspondence_matrix = multi_mahalanobis(new_values[:,1:3], old_values[:,:2], inv_covs)
+            
+            #euclidean distance
+            correspondence_matrix = euclidean_distance(new_values[:,1:3], old_values[:,:2])
             
             # store indexes of all ants, and then delete those which is taken for update, the rest will be new ants
             new_objects = list(range(new_values.shape[0]))
@@ -309,6 +326,10 @@ class multiEKF(object):
                 old_colors.append(x)
             self.color = iter(old_colors)
             old_colors = []         
+            
+            #УДАЛИ, ЭТО ДЛЯ ПРОВЕРКИ СОСТОЯНИЙ ТРЕКА
+            for ekf in self.EKFS:
+                ekf.check_color()
     
     
     def get_all_ants_data_as_array(self):
@@ -335,7 +356,7 @@ class multiEKF(object):
                 
             ax.plot(track[:,0], track[:,1], color = c)
             # plot ellipse
-            plot_covariance_ellipse((ekf.x[0], ekf.x[1]), ekf.P[0:2, 0:2], std=self.mahalanobis_thres, facecolor=c, alpha=0.2, xlim=(0,self.xlim), ylim=(self.ylim,0), ls=None, edgecolor=c)
+            plot_covariance_ellipse((ekf.x[0], ekf.x[1]), ekf.P[0:2, 0:2], std=self.mahalanobis_thres, facecolor=c, alpha=0.0, xlim=(0,self.xlim), ylim=(self.ylim,0), ls=None, edgecolor=c)
             #plot triangles
             point_A = (x, y)
             point_B = (x + ARROW_LEN * np.cos(a + delta_a), y + ARROW_LEN * np.sin(a + delta_a))

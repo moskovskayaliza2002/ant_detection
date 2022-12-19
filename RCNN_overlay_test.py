@@ -404,7 +404,7 @@ def full_video(filename, model, device, targets, conf_threshold, nms_threshold, 
     cap.release()
     cv2.destroyAllWindows()
     
-    show_video(new_filename)
+    #show_video(new_filename)
     
     
 def read_yaml(yml_filename):
@@ -457,10 +457,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA/images/0a302e52-image202.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('test_data_path', nargs='?', default="/home/ubuntu/Downloads/img001.jpg", help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    parser.add_argument('test_data_path', nargs='?', default="/home/ubuntu/ant_detection/problems/Border_crosser/video4.mp4", help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/rcnn_models/20221122-145907/best_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('draw_targets', nargs='?', default=False, help="True - will draw targets, False - will not", type=bool)
-    parser.add_argument('conf_threshold', nargs='?', default=0.6, help="Confident threshold for boxes", type=float)
+    parser.add_argument('conf_threshold', nargs='?', default=0.7, help="Confident threshold for boxes", type=float)
     parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes", type=float)
     parser.add_argument('iou_threshold', nargs='?', default=0.2, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)

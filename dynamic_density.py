@@ -179,12 +179,14 @@ def count_all_minutas(coord_yaml, tracks_yaml, video_path):
     all_density = []
     counter = 1
     for i in range(0, int(number_of_frames), distance):
+        #print(f'from {i} to {i + distance}')
         tracks_minute = np.squeeze(split_1_min(i, all_tracks, FPS)).tolist()
         #tracks_minute = split_1_min(i, all_tracks, FPS)
-        print("Итоговый массив", np.array(tracks_minute).shape)
+        #print("Итоговый массив", np.array(tracks_minute).shape)
         #print('tracks: ', tracks_minute)
         ANTS = counter_per_min(tracks_minute, area)
         print(f'За {counter} минуту плотность составила {ANTS}')
+        print(f'from {i} to {i + distance}')
         counter += 1
         all_density.append(ANTS)
     return all_density
@@ -193,10 +195,10 @@ def count_all_minutas(coord_yaml, tracks_yaml, video_path):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('tracks_yaml', nargs='?', default="/home/ubuntu/ant_detection/dynamic_density/18.08.20 Fp2' плос2_tracks.yml", help="Specify yaml track path", type=str)
-    parser.add_argument('coord_yaml', nargs='?', default="/home/ubuntu/ant_detection/dynamic_density/coods.yml", help="Specify yaml coords path", type=str)
-    parser.add_argument('input_video_path', nargs='?', default="/home/ubuntu/ant_detection/dynamic_density/18.08.20 Fp2' плос2.mp4", help="Specify input video path", type=str)
-    parser.add_argument('csv_path', nargs='?', default="/home/ubuntu/ant_detection/dynamic_density/18.08.20 Fp2' плос2.xlsx", help="Specify path to gt data", type=str)
+    parser.add_argument('tracks_yaml', nargs='?', default="/home/ubuntu/ant_detection/dynamic_density/prombem_2minute_tracks.yml", help="Specify yaml track path", type=str)
+    parser.add_argument('coord_yaml', nargs='?', default="/home/ubuntu/ant_detection/dynamic_density/coods_21m.yml", help="Specify yaml coords path", type=str)
+    parser.add_argument('input_video_path', nargs='?', default="/home/ubuntu/ant_detection/dynamic_density/prombem_2minute.mp4", help="Specify input video path", type=str)
+    parser.add_argument('csv_path', nargs='?', default="/home/ubuntu/ant_detection/videos/18.08.20 Fp2' плос2.xlsx", help="Specify path to gt data", type=str)
     #parser.add_argument('out_video_path', nargs='?', default='/home/ubuntu/ant_detection/dynamic_density/cut6s_tracks.mp4', help="Specify output video path", type=str)
     args = parser.parse_args()
     path = '/home/ubuntu/ant_detection/dynamic_density/'

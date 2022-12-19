@@ -12,7 +12,7 @@ import shutil
 ARROW_LEN = 50
 D_ANT_COLOR = 'w'
 D_ANT_SYM = 'o'
-ANT_SCORE_MIN = 0.75
+ANT_SCORE_MIN = 0.70
 MEKF = None
 R_diag = np.array([1.69, 3.76, 1.86])
 l = 0.00001
@@ -31,20 +31,35 @@ Q = np.array([[2.63795021e+00, 4.31565031e-02, 4.34318028e-03, -2.20547258e+00, 
 '''
 #Q_diag = np.array([l, l, l, l, l])
 dt = 0.1
-mh = 12
+# евклидово
+mh = 75
+#коэфф для махалонобиса
+#mh = 12
 P_limit = np.inf
 
+# Функция обработки фрейма, c визуализацией
 def proceed_frame(frame, W, H, ax, dt):
     global MEKF
-    ants = get_ants(frame, dt)    
+    ants = get_ants(frame, dt) 
+    #commit for no vis
     plot_ants(ax, ants, H, dt)
     
     if MEKF is None:
         MEKF = multiEKF(ants, R_diag,  Q, dt, mh, P_limit, W, H, int(frame['frame']))
     else:
         MEKF.proceed(ants, dt, int(frame['frame']))
+    #commit for no vis (2)
     MEKF.draw_tracks(H, ax, 'r')
     MEKF.draw_speed(ax)
+
+# Функция обработки фрейма, без визуализации 
+def proceed_frame_nv(frame, W, H, dt):
+    global MEKF
+    ants = get_ants(frame, dt) 
+    if MEKF is None:
+        MEKF = multiEKF(ants, R_diag,  Q, dt, mh, P_limit, W, H, int(frame['frame']))
+    else:
+        MEKF.proceed(ants, dt, int(frame['frame']))
 
 def get_ants(frame, dt):
     ants = []
@@ -66,16 +81,6 @@ def get_ants(frame, dt):
         cx = (bb[0] + bb[2])/2 
         cy = (bb[1] + bb[3])/2            
         a = np.arctan2(kp[1][1]-kp[0][1], kp[1][0]-kp[0][0])
-        '''
-        if len(ants) == 0:
-            ant = [score, cx, cy, a, 0, 0]
-        else:
-            prev_ant = ants[-1]
-            s = ((cx - prev_ant[1]) ** 2 + (cy - prev_ant[2]) ** 2) ** 0.5
-            v = round(s / delta_t, 2)
-            w = round((a - prev_ant[3]) / delta_t, 2)
-            ant = [score, cx, cy, a, v, w]
-        '''
         ant = [score, cx, cy, a, 0, 0]
         ants.append(ant)
     return np.array(ants)
@@ -121,12 +126,22 @@ if __name__ == '__main__':
     #file_ = 'cut6s'
     #file_ = 'cut50s'
     #file_ = 'empty_center'
-    file_ = "18.08.20 Fp2' плос2"
+    #file_ = "18.08.20 Fp2' плос2"
+    file_ = "video4"
+    #file_ = "prombem_2minute"
     
-    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/dynamic_density/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
-    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/dynamic_density/{file_}.mp4', help="Full path to video file", type=str)
-    parser.add_argument('--pic_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/frames_track', help="Full path to directory to save frames", type=str)
+    '''
+    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
+    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}.mp4', help="Full path to video file", type=str)
+    parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/frames_track', help="Full path to directory to save frames", type=str)
     parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
+    '''
+    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/Border_crosser/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
+    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/Border_crosser/{file_}.mp4', help="Full path to video file", type=str)
+    parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/frames_track', help="Full path to directory to save frames", type=str)
+    parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/Border_crosser/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
+    parser.add_argument('--visualisation', nargs='?', default=False, help="Make visualization or file with tracks only", type=bool)
+    
     args = parser.parse_args()
     print(f"Loading data from {args.yaml_path}...")
     ANT_DATA = read_yaml(args.yaml_path)    
@@ -142,26 +157,29 @@ if __name__ == '__main__':
     cap = cv2.VideoCapture(args.video_path)        
     maxim_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     count = 1
-    fig, ax = plt.subplots()  
-    plt.ion()
-    plt.show(block=False)
-    for frame in ANT_DATA['frames']:                          
-        ax.clear()
-        #print('Frame:', count, '/', maxim_frames)
-        ret, frame_v = cap.read()
-        #frame_v = np.flip(frame_v, (0,2))
-        #print(frame_v.shape)
-        ax.imshow(frame_v)
-        
-        ax.set_title(f"Frame {list(frame.keys())[0]}")
-        plt.xlim(0, ANT_DATA['weight'])
-        plt.ylim(0, ANT_DATA['height'])
-        proceed_frame(frame, ANT_DATA['weight'], ANT_DATA['height'], ax, dt)
-        
-        plt.savefig(pic_save_path + '/frame' + str(count) + '.png')
-        count += 1
-        plt.pause(0.1)
-        #plt.show()
+    ax = None
+    if args.visualisation:
+        fig, ax = plt.subplots()  
+        plt.ion()
+        plt.show(block=False)
+        for frame in ANT_DATA['frames']:    
+            ax.clear()
+            print('Frame:', count, '/', maxim_frames)
+            ret, frame_v = cap.read()
+            print(frame_v.shape)
+            ax.imshow(frame_v)
+            ax.set_title(f"Frame {list(frame.keys())[0]}")
+            plt.xlim(0, ANT_DATA['weight'])
+            plt.ylim(0, ANT_DATA['height'])
+            proceed_frame(frame, ANT_DATA['weight'], ANT_DATA['height'], ax, dt)
+            plt.savefig(pic_save_path + '/frame' + str(count) + '.png')
+            count += 1
+            plt.pause(0.1)
+            plt.show()
+    else:
+        for frame in ANT_DATA['frames']:    
+            ret, frame_v = cap.read()
+            proceed_frame(frame, ANT_DATA['weight'], ANT_DATA['height'], ax, dt)
         
     MEKF.write_tracks(args.tracks_save_path)
         
@@ -175,6 +193,7 @@ if __name__ == '__main__':
     all_errors = np.asarray(all_errors, dtype=np.float64)
     
     safe_p = '/home/ubuntu/ant_detection/boxplot/'
+    '''
     plt.clf()
     plt.boxplot(all_errors[:, 0])
     plt.savefig(safe_p + 'x' + '.png')
@@ -190,18 +209,11 @@ if __name__ == '__main__':
     plt.clf()
     plt.boxplot(all_errors[:, 4])
     plt.savefig(safe_p + 'w' + '.png')
-    
-    
-    print(all_errors.shape, type(all_errors))
-    #print(all_errors.T)
-    #x = np.array([[0, 3, 4], [1, 2, 4], [3, 4, 5]])
-    #print(np.cov(x))
+    '''
     new_arr = quartile_filter(all_errors.T)
-    print(new_arr.shape, type(new_arr))
-    print(np.cov(new_arr))
-    
-    
+    #cov_matrix = np.matmul(new_arr, new_arr.T)
     #print(np.cov(all_errors))
+    
     '''
     C = [[0 for i in range(5)] for j in range(5)]
     for i in range(5):
