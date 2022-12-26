@@ -15,6 +15,7 @@ import time
 
 # the following instructions https://medium.com/@alexppppp/how-to-train-a-custom-keypoint-detection-model-with-pytorch-d9af90e111da
 
+# Функция, трансформирующая изображения во время обучения. Поворачивает на 90 градусов случайное количество раз и накладывает фильтры.
 def train_transform():
     return A.Compose([
         A.Sequential([
@@ -139,7 +140,7 @@ class ClassDataset(Dataset):
     def __len__(self):
         return len(self.imgs_files)
 
-
+# Модель, с предобученной магистралью, 2 классами и 2 ключевыми точками.
 def get_model(num_keypoints, weights_path=None):
     
     anchor_generator = AnchorGenerator(sizes=(32, 64, 128, 256, 512), aspect_ratios=(0.25, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0))
@@ -163,7 +164,7 @@ def get_model(num_keypoints, weights_path=None):
         
     return model
 
-
+# Функция визуализирующая предсказанные аннотации, либо и предсказанные и оригинальные.
 def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=None, keypoints_original=None):
     fontsize = 12
     keypoints_classes_ids2names = {0: 'A', 1: 'H'}
@@ -201,7 +202,7 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
         ax[1].set_title('Transformed image', fontsize=fontsize)
         plt.show(block=True)
 
-
+# Функция обучения
 def train_rcnn(num_epochs, root):
     device = torch.device('cpu')
     #device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -226,14 +227,14 @@ def train_rcnn(num_epochs, root):
     dataset_test = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
 
     data_loader_train = DataLoader(dataset_train, batch_size=16, shuffle=True, collate_fn=collate_fn) # on gpu 5
-    data_loader_test = DataLoader(dataset_test, batch_size=3, shuffle=False, collate_fn=collate_fn)
+    data_loader_test = DataLoader(dataset_test, batch_size=6, shuffle=False, collate_fn=collate_fn)
     
     model = get_model(num_keypoints = 2)
     model.to(device)
     
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.SGD(params, lr=0.001, momentum=0.9, weight_decay=0.0005)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.3)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.3)
     
     all_clas_loss = []
     all_bbox_loss = []
@@ -291,7 +292,7 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/dataset', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=10, help="Specify number of epoch", type=int)
+    parser.add_argument('num_epoch', nargs='?', default=50, help="Specify number of epoch", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path

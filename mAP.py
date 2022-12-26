@@ -29,6 +29,7 @@ def intersection_over_union(boxA, boxB):
 
 
 def get_real_bboxes(im_path):
+    #По пути изображения находит аннотации ограничивающих рамок
     number = im_path[im_path.rfind('e') + 1 : im_path.rfind('.')]
     im_root = im_path[:im_path.rfind('/')]
     test_root = im_root[:im_root.rfind('/') + 1]
@@ -37,6 +38,7 @@ def get_real_bboxes(im_path):
     return orig_bb
 
 def P_R_counter(scores, obj, num_obj):
+    # Считает точность и отклик
     flat_scores = [item for sublist in scores for item in sublist]
     flat_obj = [item for sublist in obj for item in sublist]
     
@@ -58,8 +60,6 @@ def P_R_counter(scores, obj, num_obj):
         try:
             precision = TP / (FP + TP)
             recall = TP / num_obj
-            #print(f"precision = {precision} = {TP} / ({FP} + {TP})")
-            #print(f"recall = {recall} = {TP} / {GT_values.shape[0]}")
         
         except ZeroDivisionError:
         
@@ -71,6 +71,7 @@ def P_R_counter(scores, obj, num_obj):
     return all_prec, all_recall
 
 def cleanup_iou_matrix(mat):
+    #Выбирает наибольшие совпадения
     conf_cand = []
     for i in range(len(mat)):
         if len(np.where(mat[i]==max(mat[i]))[0].tolist()) != 1:
@@ -82,6 +83,7 @@ def cleanup_iou_matrix(mat):
     return conf_cand
 
 def is_object(gt, scores, pred, tresh_iou):
+    #Проверяет, является ли объектом (по пороговому значению iou)
     result = []
     iou_matrix = np.zeros((pred.shape[0], gt.shape[0]))
     for i in range(pred.shape[0]):
@@ -97,28 +99,20 @@ def is_object(gt, scores, pred, tresh_iou):
             
     return result
  
-def interpol(pr):
-    for i in range(len(pr)):
-        if i != 0:
-            while pr[i] > max(pr[:i]):
-                ar = pr[:i]
-                pos = np.where(ar[i]==max(pr[:i]))[0]
-                for j in pos:
-                    pr[j] = pr[i]
-    
-    return pr
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     file_ = 'cut50s'
     parser.add_argument('--test_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/Test_data', help="path to folder with images and annot", type=str)
     parser.add_argument('--iuo_tresh', nargs='?', default=0.5, help="treshold for TP and FP", type=float)
-    parser.add_argument('--model_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/rcnn_models/20221122-172249/full_weights.pth', help="path to weights", type=str)
+    parser.add_argument('--model_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/rcnn_models/20221219-132346/full_weights.pth', help="path to weights", type=str)
     parser.add_argument('conf_threshold', nargs='?', default=0.8, help="Confident threshold for boxes", type=float)
     parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes", type=float)
     parser.add_argument('iou_threshold', nargs='?', default=0.3, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
+    
+    # the best weights 20221122-172249
     
     
     args = parser.parse_args()
@@ -151,12 +145,6 @@ if __name__ == '__main__':
             
     
     pr, rec = P_R_counter(all_scores, all_is_objects, number_of_real_obj)
-    
-    #eval_table = pd.DataFrame()
-    #eval_table['Precision'] = pr
-    #eval_table['Recall'] = rec
-    #eval_table['IP'] = eval_table.groupby('Recall')['Precision'].transform('max')
-    #inter_pres = eval_table['IP'].tolist()
     
     inter_pr = np.maximum.accumulate(pr[::-1])[::-1]
     print(f'AP: {np.trapz(inter_pr, rec)}')
