@@ -203,8 +203,8 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
         plt.show(block=True)
 
 # Функция обучения
-def train_rcnn(num_epochs, root):
-    device = torch.device('cpu')
+def train_rcnn(num_epochs, root, device):
+    #device = torch.device('cpu')
     #device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
     #KEYPOINTS_FOLDER_TEST = root + '/test_data'
@@ -226,8 +226,8 @@ def train_rcnn(num_epochs, root):
     dataset_train = ClassDataset(KEYPOINTS_FOLDER_TRAIN, transform=train_transform(), demo=False)
     dataset_test = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
 
-    data_loader_train = DataLoader(dataset_train, batch_size=16, shuffle=True, collate_fn=collate_fn) # on gpu 5
-    data_loader_test = DataLoader(dataset_test, batch_size=6, shuffle=False, collate_fn=collate_fn)
+    data_loader_train = DataLoader(dataset_train, batch_size=2, shuffle=True, collate_fn=collate_fn) # on gpu 5
+    data_loader_test = DataLoader(dataset_test, batch_size=1, shuffle=False, collate_fn=collate_fn)
     
     model = get_model(num_keypoints = 2)
     model.to(device)
@@ -292,37 +292,40 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/dataset', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=50, help="Specify number of epoch", type=int)
+    parser.add_argument('num_epoch', nargs='?', default=2, help="Specify number of epoch", type=int)
+    args = parser.parse_args()
+    parser.add_argument('device', nargs='?', default='gpu', help="Specify device type", type=str)
     args = parser.parse_args()
     
     root_path = args.root_path
     num_epoch = args.num_epoch
-    device = torch.device('cpu')
+    device = None
+    #device = torch.device('cpu')
+    if args.device == 'cpu':
+        device = torch.device('cpu')
+        print('*****************************DEVICE: CPU*****************************')
+    else:
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        if torch.cuda.is_available():
+            print('*****************************DEVICE: GPU*****************************')
+            print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
+            print(f"CUDA version: {torch.version.cuda}")
+            cuda_id = torch.cuda.current_device()
+            print(f"ID of current CUDA device: {torch.cuda.current_device()}")
+            print(f"Name of current CUDA device: {torch.cuda.get_device_name(cuda_id)}")
+        
+        else:
+            print('*****************************DEVICE: CPU*****************************')
+        
     #device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    
-    
     # how to install and use cuda https://www.geeksforgeeks.org/how-to-set-up-and-run-cuda-operations-in-pytorch/
     # pytorch cuda installation https://pytorch.org/
-    
-    '''
-    if torch.cuda.is_available():
-        print('*****************************DEVICE: GPU*****************************')
-        print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
-        print(f"CUDA version: {torch.version.cuda}")
-    
-        cuda_id = torch.cuda.current_device()
-        print(f"ID of current CUDA device: {torch.cuda.current_device()}")
-            
-        print(f"Name of current CUDA device: {torch.cuda.get_device_name(cuda_id)}")
-    else:
-        print('*****************************DEVICE: CPU*****************************')
-    '''
-    print(f"device {device}")
+
     sec_start = time.time()
     struct_start = time.localtime(sec_start)
     start_time = time.strftime('%d.%m.%Y %H:%M', struct_start)
 
-    model, weights_path = train_rcnn(num_epoch, root_path)
+    model, weights_path = train_rcnn(num_epoch, root_path, device)
     
     sec_finish = time.time()
     struct_finish = time.localtime(sec_finish)
