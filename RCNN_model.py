@@ -203,7 +203,7 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
         plt.show(block=True)
 
 # Функция обучения
-def train_rcnn(num_epochs, root, device):
+def train_rcnn(num_epochs, root, device, train_batch_size, test_batch_size, optim, learning_rate, weight_decay, lr_step):
     #device = torch.device('cpu')
     #device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
@@ -226,15 +226,17 @@ def train_rcnn(num_epochs, root, device):
     dataset_train = ClassDataset(KEYPOINTS_FOLDER_TRAIN, transform=train_transform(), demo=False)
     dataset_test = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
 
-    data_loader_train = DataLoader(dataset_train, batch_size=2, shuffle=True, collate_fn=collate_fn) # on gpu 5
-    data_loader_test = DataLoader(dataset_test, batch_size=1, shuffle=False, collate_fn=collate_fn)
+    data_loader_train = DataLoader(dataset_train, batch_size=train_batch_size, shuffle=True, collate_fn=collate_fn) # on gpu 5
+    data_loader_test = DataLoader(dataset_test, batch_size=test_batch_size, shuffle=False, collate_fn=collate_fn)
     
     model = get_model(num_keypoints = 2)
     model.to(device)
     
     params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.SGD(params, lr=0.001, momentum=0.9, weight_decay=0.0005)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.3)
+    if optim == 'sgd':
+        optimizer = torch.optim.SGD(params, lr=learning_rate, momentum=0.9, weight_decay=weight_decay)
+        
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=lr_step, gamma=0.3)
     
     all_clas_loss = []
     all_bbox_loss = []
@@ -286,15 +288,35 @@ def train_rcnn(num_epochs, root, device):
     torch.save(model.state_dict(), SAVING_WEIGHTS_PATH + '/full_weights.pth')
     return model, SAVING_WEIGHTS_PATH
 
+
+def write_info(filename, root, device, epoch, train_batch, test_batch, optim, lr, weight_decay, step, start, finish):
+    with open(filename, 'w') as file:
+        file.write("Dataset: " + str(root) + "\n")
+        file.write("Device: " + str(device) + "\n")
+        file.write("Number of epoch: " + str(epoch) + "\n")
+        file.write("Size of train batch: " + str(train_batch) + "\n")
+        file.write("Size of test batch: " + str(test_batch) + "\n")
+        file.write("Optimazer: " + str(optim) + "\n")
+        file.write("Learning rate: " + str(lr) + "\n")
+        file.write("Weight decay: " + str(weight_decay) + "\n")
+        file.write("Step of lr (number epochs): " + str(step) + "\n")
+        file.write("Started: " + start + " finished: " + finish + "\n")
+        file.close()
     
 if __name__ == '__main__':
     torch.cuda.empty_cache()
     
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/dataset', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=2, help="Specify number of epoch", type=int)
-    args = parser.parse_args()
+    parser.add_argument('num_epoch', nargs='?', default=1, help="Specify number of epoch", type=int)
+    parser.add_argument('train_batch_size', nargs='?', default=2, help="Specify batch size for train data", type=int)
+    parser.add_argument('test_batch_size', nargs='?', default=1, help="Specify batch size for test data", type=int)
     parser.add_argument('device', nargs='?', default='gpu', help="Specify device type", type=str)
+    args = parser.parse_args()
+    parser.add_argument('optim', nargs='?', default='sgd', help="Specify optimazer type", type=str)
+    parser.add_argument('learning_rate', nargs='?', default=0.001, help="Specify learning rate", type=float)
+    parser.add_argument('weight_decay', nargs='?', default=0.0005, help="Specify weight decay", type=float)
+    parser.add_argument('lr_step', nargs='?', default=15, help="Specify learning rate", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path
@@ -325,9 +347,12 @@ if __name__ == '__main__':
     struct_start = time.localtime(sec_start)
     start_time = time.strftime('%d.%m.%Y %H:%M', struct_start)
 
-    model, weights_path = train_rcnn(num_epoch, root_path, device)
+    model, weights_path = train_rcnn(num_epoch, root_path, device, args.train_batch_size, args.test_batch_size, args.optim, args.learning_rate, args.weight_decay, args.lr_step)
     
     sec_finish = time.time()
     struct_finish = time.localtime(sec_finish)
     finish_time = time.strftime('%d.%m.%Y %H:%M', struct_finish)
+    
+    write_info(weights_path + '/info.txt', root_path, args.device,  args.num_epoch, args.train_batch_size, args.test_batch_size, args.optim, args.learning_rate, args.weight_decay,  args.lr_step, start_time, finish_time)
+    
     print(f'Started {start_time} Finished {finish_time}')

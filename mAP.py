@@ -99,6 +99,32 @@ def is_object(gt, scores, pred, tresh_iou):
             
     return result
  
+def count_mAP(conf_threshold, nms_threshold, iou_threshold, images_path, iuo_tresh, model_path, overlay_w, overlay_h):
+    average_precision = 0
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    model = get_model(2, model_path)
+    counter = 1
+    all_scores = []
+    all_is_objects = []
+    number_of_real_obj = 0
+    dir_size = len(glob.glob(images_path + '/*'))
+    for f in os.scandir(images_path):
+        if f.is_file() and f.path.split('.')[-1].lower() == 'png':
+            print(f'Изображение №{counter} из {dir_size}')
+            counter += 1
+            _, pred_b, _, pred_sc = one_image_test(f.path, model, device, False, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h, False)
+            annot_bboxes = np.array(get_real_bboxes(f.path))
+            number_of_real_obj += annot_bboxes.shape[0]
+            is_obj = is_object(annot_bboxes, pred_sc, np.array(pred_b), iuo_tresh)
+            all_is_objects.append(is_obj)
+            all_scores.append(pred_sc)
+            
+    
+    pr, rec = P_R_counter(all_scores, all_is_objects, number_of_real_obj)
+    
+    inter_pr = np.maximum.accumulate(pr[::-1])[::-1]
+    ap = np.trapz(inter_pr, rec)
+    return ap
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -106,7 +132,7 @@ if __name__ == '__main__':
     parser.add_argument('--test_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/Test_data', help="path to folder with images and annot", type=str)
     parser.add_argument('--iuo_tresh', nargs='?', default=0.5, help="treshold for TP and FP", type=float)
     parser.add_argument('--model_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/rcnn_models/20221226-111349/full_weights.pth', help="path to weights", type=str)
-    parser.add_argument('conf_threshold', nargs='?', default=0.8, help="Confident threshold for boxes", type=float)
+    parser.add_argument('conf_threshold', nargs='?', default=0.7, help="Confident threshold for boxes", type=float)
     parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes", type=float)
     parser.add_argument('iou_threshold', nargs='?', default=0.3, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
@@ -123,31 +149,12 @@ if __name__ == '__main__':
     overlay_h = args.overlay_h
     real_bboxes_path = args.test_path + '/bboxes'
     images_path = args.test_path + '/images'
-    dir_size = len(glob.glob(real_bboxes_path + '/*'))
+    #dir_size = len(glob.glob(real_bboxes_path + '/*'))
     iuo_tresh = args.iuo_tresh
-    average_precision = 0
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    model = get_model(2, args.model_path)
-    counter = 1
-    all_scores = []
-    all_is_objects = []
-    number_of_real_obj = 0
-    for f in os.scandir(images_path):
-        if f.is_file() and f.path.split('.')[-1].lower() == 'png':
-            print(f'Изображение №{counter} из {dir_size}')
-            counter += 1
-            _, pred_b, _, pred_sc = one_image_test(f.path, model, device, False, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h, False)
-            annot_bboxes = np.array(get_real_bboxes(f.path))
-            number_of_real_obj += annot_bboxes.shape[0]
-            is_obj = is_object(annot_bboxes, pred_sc, np.array(pred_b), iuo_tresh)
-            all_is_objects.append(is_obj)
-            all_scores.append(pred_sc)
-            
+    model_path = args.model_path
     
-    pr, rec = P_R_counter(all_scores, all_is_objects, number_of_real_obj)
-    
-    inter_pr = np.maximum.accumulate(pr[::-1])[::-1]
-    print(f'AP: {np.trapz(inter_pr, rec)}')
+    mAP = count_mAP(conf_threshold, nms_threshold, iou_threshold, images_path, iuo_tresh, model_path, overlay_w, overlay_h)
+    print(f'AP: {mAP}')
 
     plt.xlabel("Recall")
     plt.ylabel("Precision")
