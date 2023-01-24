@@ -50,5 +50,5 @@ if __name__ == '__main__':
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
     args = parser.parse_args()
-    datasets_path = ['/home/ubuntu/ant_detection/dataset/delete2', '/home/ubuntu/ant_detection/dataset/delete']
+    datasets_path = ['/home/ubuntu/ant_detection/dataset/Test_data', '/home/ubuntu/ant_detection/dataset/Train_not_cropped', '/home/ubuntu/ant_detection/test_on_article_data/indoor', '/home/ubuntu/ant_detection/test_on_article_data/outdoor']
     evaluate(args.models_path, datasets_path, args.conf_threshold, args.nms_threshold, args.iou_threshold, args.iuo_tresh, args.overlay_w, args.overlay_h)

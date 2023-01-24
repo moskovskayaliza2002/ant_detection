@@ -95,11 +95,20 @@ def split_1_min(start_frame, data, FPS):
 
 
 def check_track(track, coords):
+    steps_out_of_area = 0
     times_he_walk_in = 0
     any_point_in_area = False
     for point in track:
         if is_points_in(coords, [point[0], point[1]]) and not any_point_in_area:
             times_he_walk_in += 1
+        
+        if not is_points_in(coords, [point[0], point[1]]):
+            steps_out_of_area += 1
+        
+        if is_points_in(coords, [point[0], point[1]]):
+            if steps_out_of_area < 4:
+                times_he_walk_in -= 1
+            steps_out_of_area = 0
             
         any_point_in_area = is_points_in(coords, [point[0], point[1]])
         '''

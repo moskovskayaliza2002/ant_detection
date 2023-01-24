@@ -178,6 +178,27 @@ def euclidean_distance(a, b):
     P = np.add.outer(np.sum(a**2, axis=1), np.sum(b**2, axis=1))
     N = np.dot(a, b.T)
     return np.sqrt(P - 2*N)
+
+'''
+new values - [[p, x, y, a, v, w]]
+old values - [[x, y, a, v, w]]
+'''
+def distance_per_t(new_v, old_v):
+    matrix = np.zeros((new_v.shape[0], old_v.shape[0]))
+    for i, o_value in enumerate(old_v):
+        x0 = o_value[0]
+        y0 = o_value[1]
+        a0 = o_value[2]
+        #v0 = o_value[3]
+        #w0 = o_value[4]
+        v0 = 1
+        w0 = 1
+        for j, n_value in enumerate(new_v):
+            delta_r = np.sqrt((n_value[1] - x0) ** 2 + (n_value[2] - y0) ** 2)
+            delta_a = substract_angles(a0, n_value[3])
+            t = delta_r / v0 + delta_a / w0
+            matrix[j,i] = t
+    return matrix
     
 
 class multiEKF(object):
@@ -231,7 +252,10 @@ class multiEKF(object):
             #correspondence_matrix = multi_mahalanobis(new_values[:,1:3], old_values[:,:2], inv_covs)
             
             #euclidean distance
-            correspondence_matrix = euclidean_distance(new_values[:,1:3], old_values[:,:2])
+            #correspondence_matrix = euclidean_distance(new_values[:,1:3], old_values[:,:2])
+            
+            #both distance and orientation 
+            correspondence_matrix = distance_per_t(new_values, old_values)
             
             # store indexes of all ants, and then delete those which is taken for update, the rest will be new ants
             new_objects = list(range(new_values.shape[0]))

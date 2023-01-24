@@ -457,7 +457,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     #parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/TEST_ACC_DATA/images/0a302e52-image202.png', help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('test_data_path', nargs='?', default="/home/ubuntu/ant_detection/test_on_article_data", help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    parser.add_argument('test_data_path', nargs='?', default="/home/ubuntu/ant_detection/test_on_article_data/output.png", help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/rcnn_models/20221122-145907/best_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('draw_targets', nargs='?', default=False, help="True - will draw targets, False - will not", type=bool)
     parser.add_argument('conf_threshold', nargs='?', default=0.3, help="Confident threshold for boxes", type=float)

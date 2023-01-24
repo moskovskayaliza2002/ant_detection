@@ -136,11 +136,11 @@ if __name__ == '__main__':
     parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/frames_track', help="Full path to directory to save frames", type=str)
     parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
     '''
-    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/Border_crosser/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
-    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/Border_crosser/{file_}.mp4', help="Full path to video file", type=str)
+    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/Track_gap/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
+    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/Track_gap/{file_}.mp4', help="Full path to video file", type=str)
     parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/frames_track', help="Full path to directory to save frames", type=str)
-    parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/Border_crosser/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
-    parser.add_argument('--visualisation', nargs='?', default=False, help="Make visualization or file with tracks only", type=bool)
+    parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/Track_gap/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
+    parser.add_argument('--visualisation', nargs='?', default=True, help="Make visualization or file with tracks only", type=bool)
     
     args = parser.parse_args()
     print(f"Loading data from {args.yaml_path}...")
@@ -179,7 +179,7 @@ if __name__ == '__main__':
     else:
         for frame in ANT_DATA['frames']:    
             ret, frame_v = cap.read()
-            proceed_frame(frame, ANT_DATA['weight'], ANT_DATA['height'], ax, dt)
+            proceed_frame_nv(frame, ANT_DATA['weight'], ANT_DATA['height'], dt)
         
     MEKF.write_tracks(args.tracks_save_path)
         
