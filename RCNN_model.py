@@ -308,9 +308,9 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/dataset', help="Specify main directory", type=str)
-    parser.add_argument('num_epoch', nargs='?', default=1, help="Specify number of epoch", type=int)
-    parser.add_argument('train_batch_size', nargs='?', default=2, help="Specify batch size for train data", type=int)
-    parser.add_argument('test_batch_size', nargs='?', default=1, help="Specify batch size for test data", type=int)
+    parser.add_argument('num_epoch', nargs='?', default=100, help="Specify number of epoch", type=int)
+    parser.add_argument('train_batch_size', nargs='?', default=6, help="Specify batch size for train data", type=int)
+    parser.add_argument('test_batch_size', nargs='?', default=4, help="Specify batch size for test data", type=int)
     parser.add_argument('device', nargs='?', default='gpu', help="Specify device type", type=str)
     args = parser.parse_args()
     parser.add_argument('optim', nargs='?', default='sgd', help="Specify optimazer type", type=str)

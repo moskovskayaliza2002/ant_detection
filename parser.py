@@ -224,8 +224,8 @@ def create_dataset(root_path, json_path): # Не рабочая функция
 if __name__ == '__main__':
     #root_path - is a forder, where folger with images and a json file with annotation lies. it will create there two folders for bboxes amd keypoints txt files.
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/real_im_annot/from_here_only_polygons', help="Specify directory to create dataset", type=str)
-    parser.add_argument('json_path', nargs='?', default='/home/ubuntu/ant_detection/real_im_annot/from_here_only_polygons/annot.json', help="Specify path to json file", type=str)
+    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/extra_data', help="Specify directory to create dataset", type=str)
+    parser.add_argument('json_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/extra_data/extra.json', help="Specify path to json file", type=str)
     args = parser.parse_args()
     ROOT = args.root_path
     JSON = args.json_path
