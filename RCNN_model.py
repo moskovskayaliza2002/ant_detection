@@ -12,6 +12,10 @@ from utils import collate_fn
 import torchvision
 import argparse
 import time
+import gc
+
+### firstly set max_split_size_mb
+# export PYTORCH_CUDA_ALLOC_CONF=garbage_collection_threshold:0.6,max_split_size_mb:128
 
 # the following instructions https://medium.com/@alexppppp/how-to-train-a-custom-keypoint-detection-model-with-pytorch-d9af90e111da
 
@@ -210,7 +214,7 @@ def train_rcnn(num_epochs, root, device, train_batch_size, test_batch_size, opti
     #KEYPOINTS_FOLDER_TEST = root + '/test_data'
     #KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
     KEYPOINTS_FOLDER_TEST = root + '/Test_while_train_data'
-    KEYPOINTS_FOLDER_TRAIN = root + '/Train_data'
+    KEYPOINTS_FOLDER_TRAIN = root + '/Train_data_new'
     SAVING_WEIGHTS_PATH = root + '/rcnn_models/'
     
     if not os.path.exists(SAVING_WEIGHTS_PATH):
@@ -281,6 +285,7 @@ def train_rcnn(num_epochs, root, device, train_batch_size, test_batch_size, opti
             min_loss = total
             torch.save(model.state_dict(), SAVING_WEIGHTS_PATH + '/best_weights.pth')
         
+        gc.collect()
         torch.cuda.empty_cache()
         
     plt.savefig(SAVING_WEIGHTS_PATH + '/loss.png')
@@ -307,9 +312,9 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/dataset', help="Specify main directory", type=str)
+    parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset', help="Specify main directory", type=str)
     parser.add_argument('num_epoch', nargs='?', default=100, help="Specify number of epoch", type=int)
-    parser.add_argument('train_batch_size', nargs='?', default=6, help="Specify batch size for train data", type=int)
+    parser.add_argument('train_batch_size', nargs='?', default=8, help="Specify batch size for train data", type=int)
     parser.add_argument('test_batch_size', nargs='?', default=4, help="Specify batch size for test data", type=int)
     parser.add_argument('device', nargs='?', default='gpu', help="Specify device type", type=str)
     args = parser.parse_args()
