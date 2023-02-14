@@ -1,14 +1,12 @@
-import pandas as pd
 import numpy as np
 import argparse
 from overlay_intersection import read_boxes
 import glob
 import os
 from RCNN_model import get_model
-from RCNN_overlay_test import one_image_test
+from universal_RCNN_test import one_image_test
 import torch
 import matplotlib.pyplot as plt
-import pandas as pd
 
 
 def intersection_over_union(boxA, boxB):
@@ -99,7 +97,7 @@ def is_object(gt, scores, pred, tresh_iou):
             
     return result
  
-def count_mAP(conf_threshold, nms_threshold, iou_threshold, images_path, iuo_tresh, model_path, overlay_w, overlay_h):
+def count_mAP(conf_threshold, nms_threshold, iou_threshold, images_path, iuo_tresh, model_path, overlay_w, overlay_h, splits_vertical, splits_horizontal):
     average_precision = 0
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     model = get_model(2, model_path)
@@ -112,7 +110,7 @@ def count_mAP(conf_threshold, nms_threshold, iou_threshold, images_path, iuo_tre
         if f.is_file() and f.path.split('.')[-1].lower() == 'png':
             print(f'Изображение №{counter} из {dir_size}')
             counter += 1
-            _, pred_b, _, pred_sc = one_image_test(f.path, model, device, False, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h, False)
+            _, pred_b, _, pred_sc = one_image_test(f.path, model, device, False, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h, splits_vertical, splits_horizontal, False)
             annot_bboxes = np.array(get_real_bboxes(f.path))
             number_of_real_obj += annot_bboxes.shape[0]
             is_obj = is_object(annot_bboxes, pred_sc, np.array(pred_b), iuo_tresh)
@@ -124,19 +122,21 @@ def count_mAP(conf_threshold, nms_threshold, iou_threshold, images_path, iuo_tre
     
     inter_pr = np.maximum.accumulate(pr[::-1])[::-1]
     ap = np.trapz(inter_pr, rec)
-    return ap
+    return pr, rec, inter_pr, ap
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     file_ = 'cut50s'
     parser.add_argument('--test_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/Test_data', help="path to folder with images and annot", type=str)
     parser.add_argument('--iuo_tresh', nargs='?', default=0.5, help="treshold for TP and FP", type=float)
-    parser.add_argument('--model_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/rcnn_models/20230131-155216/full_weights.pth', help="path to weights", type=str)
+    parser.add_argument('--model_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230209-170239/full_weights.pth', help="path to weights", type=str)
     parser.add_argument('conf_threshold', nargs='?', default=0.7, help="Confident threshold for boxes", type=float)
     parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes", type=float)
     parser.add_argument('iou_threshold', nargs='?', default=0.3, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
+    parser.add_argument('splits_vertical', nargs='?', default=3, help="Num of pictures in w-axis", type=int)
+    parser.add_argument('splits_horizontal', nargs='?', default=2, help="Num of pictures in h-axis", type=int)
     
     # the best weights 20221122-172249
     
@@ -153,7 +153,7 @@ if __name__ == '__main__':
     iuo_tresh = args.iuo_tresh
     model_path = args.model_path
     
-    mAP = count_mAP(conf_threshold, nms_threshold, iou_threshold, images_path, iuo_tresh, model_path, overlay_w, overlay_h)
+    pr, rec, inter_pr, mAP = count_mAP(conf_threshold, nms_threshold, iou_threshold, images_path, iuo_tresh, model_path, overlay_w, overlay_h, args.splits_vertical, args.splits_horizontal)
     print(f'AP: {mAP}')
 
     plt.xlabel("Recall")

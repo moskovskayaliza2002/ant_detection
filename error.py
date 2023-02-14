@@ -1,7 +1,7 @@
 import torch
 import torchvision
 from RCNN_model import get_model
-from RCNN_overlay_test import intersection_over_union, one_image_test
+from universal_RCNN_test import intersection_over_union, one_image_test
 from overlay_intersection import read_boxes
 import numpy as np
 import argparse
@@ -115,7 +115,7 @@ def loss(orig_bb, pred_bb, orig_kp, pred_kp, alpha_error, point_error_x, point_e
     return point_error_x, point_error_y, alpha_error
 
     
-def batch_test(root, model, device, conf_threshold, iou_threshold, nms_threshold, delta_w, delta_h, treshold = 0.3):
+def batch_test(root, model, device, conf_threshold, iou_threshold, nms_threshold, delta_w, delta_h, splits_vertical, splits_horizontal, treshold = 0.5):
     #Функция показывающая предсказывания модели на пакете изображений (Для модели, что делит на 4 исходное изображение
     image_data_path = root + '/images'
     dir_size = len(glob.glob(image_data_path + '/*'))
@@ -132,7 +132,7 @@ def batch_test(root, model, device, conf_threshold, iou_threshold, nms_threshold
             #Получаем настоящие аннотации
             orig_bboxes, orig_keypoints = get_orig_annot(image_path, root)
             #Предсказанные значения
-            _, pred_b, pred_kp, pred_sc = one_image_test(image_path, model, device, False, conf_threshold, nms_threshold, iou_threshold, delta_w, delta_h, False)
+            _, pred_b, pred_kp, pred_sc = one_image_test(image_path, model, device, False, conf_threshold, nms_threshold, iou_threshold, delta_w, delta_h, splits_vertical, splits_horizontal, False)
             #Сопоставленные с оригиналом предсказания
             new_pred_bboxes, new_pred_keypoints = get_right_from_predict(orig_bboxes, pred_b, orig_keypoints, pred_kp, treshold)
             #Ошибки по изображению
@@ -151,13 +151,15 @@ def batch_test(root, model, device, conf_threshold, iou_threshold, nms_threshold
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay/Train_data', help="Specify the full path to the folder with test data", type=str)
-    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/crop_with_overlay/rcnn_models/20220727-170625/best_weights.pth', help="Specify weights path", type=str)
-    parser.add_argument('conf_threshold', nargs='?', default=0.3, help="Confident threshold for boxes", type=float)
+    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/Train_data', help="Specify the full path to the folder with test data", type=str)
+    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230207-161545/best_weights.pth', help="Specify weights path", type=str)
+    parser.add_argument('conf_threshold', nargs='?', default=0.7, help="Confident threshold for boxes", type=float)
     parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes", type=float)
-    parser.add_argument('iou_threshold', nargs='?', default=0.3, help="IOU threshold for boxes", type=float)
+    parser.add_argument('iou_threshold', nargs='?', default=0.18, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
+    parser.add_argument('splits_vertical', nargs='?', default=3, help="Num of pictures in w-axis", type=int)
+    parser.add_argument('splits_horizontal', nargs='?', default=2, help="Num of pictures in h-axis", type=int)
     
     
     DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -177,5 +179,5 @@ if __name__ == '__main__':
         print('*****************************DEVICE: CPU*****************************')
         
     test_model = get_model(2, model_path)
-    x_err, y_err, angle_err = batch_test(test_data_path, test_model, DEVICE, conf_threshold, iou_threshold, nms_threshold, overlay_w, overlay_h)
+    x_err, y_err, angle_err = batch_test(test_data_path, test_model, DEVICE, conf_threshold, iou_threshold, nms_threshold, overlay_w, overlay_h, args.splits_vertical, args.splits_horizontal)
     print(f'X ERROR: {x_err}\nY ERROR: {y_err}\nANGLE ERROR: {angle_err}')

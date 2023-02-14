@@ -139,8 +139,6 @@ def crop_one_im(img, splits_vertical, splits_horizontal, delta_w, delta_h):
             finish = width
     
     all_images = [[0 for i in range(splits_vertical)] for j in range(splits_horizontal)]
-    print(len(all_images), len(all_images[0]))
-    print(all_images)
     
     for i, ver_im in enumerate(vertical_split_images):
         img = cv2.rotate(ver_im, cv2.ROTATE_90_CLOCKWISE)
@@ -154,7 +152,6 @@ def crop_one_im(img, splits_vertical, splits_horizontal, delta_w, delta_h):
         for j in range(splits_horizontal):
             new_image = img[:, start:finish]
             new_image = cv2.rotate(new_image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            print(new_image.shape)
             counter_splits += 1
             if counter_splits < splits_horizontal - 1:
                 start = finish - 2 * delta_h
@@ -162,7 +159,6 @@ def crop_one_im(img, splits_vertical, splits_horizontal, delta_w, delta_h):
             else:
                 start = finish - 2 * delta_h
                 finish = width
-            print(j, i)
             all_images[j][i] = new_image
     all_images.reverse()
     '''
@@ -293,16 +289,16 @@ def cropper(old_root_path, new_root_path, splits_vertical, splits_horizontal, de
 if __name__ == '__main__':  
     parser = argparse.ArgumentParser()
     parser.add_argument('old_root', nargs='?', default='/home/ubuntu/ant_detection/dataset/Train_not_cropped', help="Specify directory with old dataset, there should be such folders as images, keypoints and bboxes", type=str)
-    parser.add_argument('new_root', nargs='?', default='/home/ubuntu/ant_detection/dataset/Train_data_new', help="Specify path for new data directory", type=str)
+    parser.add_argument('new_root', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/Train_data', help="Specify path for new data directory", type=str)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
-    parser.add_argument('splits_vertical', nargs='?', default=3, help="Num of pictures in w-axis", type=int)
-    parser.add_argument('splits_horizontal', nargs='?', default=2, help="Num of pictures in h-axis", type=int)
+    parser.add_argument('splits_vertical', nargs='?', default=4, help="Num of pictures in w-axis", type=int)
+    parser.add_argument('splits_horizontal', nargs='?', default=3, help="Num of pictures in h-axis", type=int)
     args = parser.parse_args()
     
-    #cropper(args.old_root, args.new_root, args.splits_vertical, args.splits_horizontal, args.overlay_w, args.overlay_h)
+    cropper(args.old_root, args.new_root, args.splits_vertical, args.splits_horizontal, args.overlay_w, args.overlay_h)
     
-    test_image = cv2.imread('/home/ubuntu/ant_detection/dataset/Train_data_new/images/image9.png')
-    test_bb = read_boxes('/home/ubuntu/ant_detection/dataset/Train_data_new/bboxes/bbox9.txt')
-    test_kp, _ = find_kp(9, '/home/ubuntu/ant_detection/dataset/Train_data_new')
-    visualize(test_image, test_bb, test_kp)
+    #test_image = cv2.imread('/home/ubuntu/ant_detection/new_dataset/Train_data/images/image9.png')
+    #test_bb = read_boxes('/home/ubuntu/ant_detection/new_dataset/Train_data/bboxes/bbox9.txt')
+    #test_kp, _ = find_kp(9, '/home/ubuntu/ant_detection/new_dataset/Train_data')
+    #visualize(test_image, test_bb, test_kp)

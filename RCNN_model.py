@@ -214,7 +214,7 @@ def train_rcnn(num_epochs, root, device, train_batch_size, test_batch_size, opti
     #KEYPOINTS_FOLDER_TEST = root + '/test_data'
     #KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
     KEYPOINTS_FOLDER_TEST = root + '/Test_while_train_data'
-    KEYPOINTS_FOLDER_TRAIN = root + '/Train_data_new'
+    KEYPOINTS_FOLDER_TRAIN = root + '/Train_data'
     SAVING_WEIGHTS_PATH = root + '/rcnn_models/'
     
     if not os.path.exists(SAVING_WEIGHTS_PATH):
@@ -231,6 +231,7 @@ def train_rcnn(num_epochs, root, device, train_batch_size, test_batch_size, opti
     dataset_test = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
 
     data_loader_train = DataLoader(dataset_train, batch_size=train_batch_size, shuffle=True, collate_fn=collate_fn) # on gpu 5
+    gradient_accumulations = train_batch_size * 8 # real train batch gradient_accumulations
     data_loader_test = DataLoader(dataset_test, batch_size=test_batch_size, shuffle=False, collate_fn=collate_fn)
     
     model = get_model(num_keypoints = 2)
@@ -250,9 +251,11 @@ def train_rcnn(num_epochs, root, device, train_batch_size, test_batch_size, opti
     min_loss = float('inf')
     plt.ion()
     plt.show(block=False)
-    for epoch in range(num_epochs):
+    batch_counter = 0
+    for epoch in range(num_epochs * 8):
         _, dictionary = train_one_epoch(model, optimizer, data_loader_train, device, epoch, print_freq=1000)
         print(dictionary)
+        batch_counter += train_batch_size
         
         loss_class = dictionary['loss_classifier'].item()
         loss_bbox = dictionary['loss_box_reg'].item()
@@ -274,13 +277,14 @@ def train_rcnn(num_epochs, root, device, train_batch_size, test_batch_size, opti
         plt.legend(loc="best")
         plt.gcf().canvas.draw_idle()
         plt.gcf().canvas.start_event_loop(0.3)
-
-        lr_scheduler.step()
         
-        #validation_loss  = evaluate_loss(model, data_loader_test, device=device)
-        #print(f"validation_loss: {validation_loss}")
-        
-        evaluate(model, data_loader_test, device)
+        if batch_counter % gradient_accumulations == 0:
+            lr_scheduler.step()
+            model.zero_grad()
+            #validation_loss  = evaluate_loss(model, data_loader_test, device=device)
+            #print(f"validation_loss: {validation_loss}")
+            evaluate(model, data_loader_test, device)
+            
         if total < min_loss:
             min_loss = total
             torch.save(model.state_dict(), SAVING_WEIGHTS_PATH + '/best_weights.pth')
@@ -314,14 +318,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset', help="Specify main directory", type=str)
     parser.add_argument('num_epoch', nargs='?', default=100, help="Specify number of epoch", type=int)
-    parser.add_argument('train_batch_size', nargs='?', default=8, help="Specify batch size for train data", type=int)
+    parser.add_argument('train_batch_size', nargs='?', default=4, help="Specify batch size for train data", type=int)
     parser.add_argument('test_batch_size', nargs='?', default=4, help="Specify batch size for test data", type=int)
     parser.add_argument('device', nargs='?', default='gpu', help="Specify device type", type=str)
     args = parser.parse_args()
     parser.add_argument('optim', nargs='?', default='sgd', help="Specify optimazer type", type=str)
-    parser.add_argument('learning_rate', nargs='?', default=0.001, help="Specify learning rate", type=float)
-    parser.add_argument('weight_decay', nargs='?', default=0.0005, help="Specify weight decay", type=float)
-    parser.add_argument('lr_step', nargs='?', default=15, help="Specify learning rate", type=int)
+    parser.add_argument('learning_rate', nargs='?', default=0.0001, help="Specify learning rate", type=float)
+    parser.add_argument('weight_decay', nargs='?', default=0.00005, help="Specify weight decay", type=float)
+    parser.add_argument('lr_step', nargs='?', default=20, help="Specify learning rate step", type=int)
     args = parser.parse_args()
     
     root_path = args.root_path

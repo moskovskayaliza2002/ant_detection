@@ -14,7 +14,7 @@ D_ANT_COLOR = 'w'
 D_ANT_SYM = 'o'
 ANT_SCORE_MIN = 0.70
 MEKF = None
-R_diag = np.array([1.69, 3.76, 1.86])
+R_diag = np.array([1.22, 1.75, 0.39])
 l = 0.00001
 
 Q = np.array([[5, 0, 0, 0, 0], 
@@ -126,8 +126,8 @@ if __name__ == '__main__':
     #file_ = 'cut6s'
     #file_ = 'cut50s'
     #file_ = 'empty_center'
-    #file_ = "18.08.20 Fp2' плос2"
-    file_ = "video4"
+    file_ = "18.08.20 Fp2' плос2"
+    #file_ = "video4"
     #file_ = "prombem_2minute"
     
     '''
@@ -136,10 +136,10 @@ if __name__ == '__main__':
     parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/frames_track', help="Full path to directory to save frames", type=str)
     parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
     '''
-    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/Track_gap/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
-    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/Track_gap/{file_}.mp4', help="Full path to video file", type=str)
+    parser.add_argument('--yaml_path', nargs='?', default=f'/windows/d/ant_detection/dynamic_density/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
+    parser.add_argument('--video_path', nargs='?', default=f'/windows/d/ant_detection/dynamic_density/{file_}.mp4', help="Full path to video file", type=str)
     parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/frames_track', help="Full path to directory to save frames", type=str)
-    parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/Track_gap/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
+    parser.add_argument('--tracks_save_path', nargs='?', default=f'//windows/d/ant_detection/dynamic_density/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
     parser.add_argument('--visualisation', nargs='?', default=True, help="Make visualization or file with tracks only", type=bool)
     
     args = parser.parse_args()
