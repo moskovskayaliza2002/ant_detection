@@ -2,8 +2,12 @@ import numpy as np
 from filterpy.kalman import ExtendedKalmanFilter
 from filterpy.stats import plot_covariance_ellipse
 from matplotlib.pyplot import cm
-import yaml
+import oyaml as yaml
 from collections import OrderedDict
+from read_tracks_from_yml import read_yaml
+import gc
+import sys
+import cv2
 
 MAX_AM_ANTS = 150
 ARROW_LEN = 50
@@ -33,9 +37,9 @@ class TrackState:
     Confirmed = 2
     Deleted = 3
     # number of hitting steps to become confirmed
-    Conf_steps = 3
+    Conf_steps = 20
     # number of no_update_steps to become deleted
-    Unconf_steps = 6
+    Unconf_steps = 10
     # number of no_update_steps to turn confirmed ants to deleted
     Del_conf_steps = 25
     
@@ -65,7 +69,7 @@ class AntEKF(ExtendedKalmanFilter):
         self.color = color
         self.error = []
 
-        self.track = [np.copy(self.x)]
+        self.track = [np.copy(self.x).astype(int)]
         self.track_state = TrackState.Unconfirmed
         self.hits = 1
         self.no_update_steps = 0
@@ -93,7 +97,7 @@ class AntEKF(ExtendedKalmanFilter):
                         
         self.no_update_steps+=1
         # TODO: add x to history
-        self.track.append(np.copy(self.x))
+        self.track.append(np.copy(self.x).astype(int))
         
     '''
     new_value - [x, y, a]
@@ -129,12 +133,12 @@ class AntEKF(ExtendedKalmanFilter):
         self.update(z, HJacobian = HJacobian, Hx = Hx, residual = residual)   
         self.hits += 1
         self.no_update_steps = 0
-        if self.frame_idx == 1:
-            self.track_state = TrackState.Confirmed
+        #if self.frame_idx == 1:
+        #    self.track_state = TrackState.Confirmed
         if self.track_state == TrackState.Unconfirmed and self.hits >= TrackState.Conf_steps:
             self.track_state = TrackState.Confirmed
         # TODO: rewrite last history element
-        self.track[-1] = np.copy(self.x)
+        self.track[-1] = np.copy(self.x).astype(int)
         
     def is_confirmed(self):
         """Returns True if this track is confirmed."""
@@ -142,11 +146,11 @@ class AntEKF(ExtendedKalmanFilter):
     
     def check_color(self):
         if self.track_state == TrackState.Confirmed:
-            self.color = 'g' #зеленый
+            self.color = (0, 255, 0) #зеленый
         elif self.track_state == TrackState.Unconfirmed:
-            self.color = 'r' #желтый
+            self.color = (0, 0, 255) #красный
         elif self.track_state == TrackState.Deleted:
-            self.color = 'b' #красный
+            self.color = (255, 0, 0) #голубой
 
         
 '''
@@ -225,7 +229,7 @@ class multiEKF(object):
         self.ylim = ylim
         self.EKFS = []
         self.deleted_ants_error = []
-        self.deleted_conf_ants = []
+        self.deleted_conf_ants = np.array([]).astype(int)
         self.color = iter(cm.rainbow(np.linspace(0, 1, MAX_AM_ANTS)))
         for i in range(start_values.shape[0]):
             c = next(self.color)
@@ -280,11 +284,12 @@ class multiEKF(object):
                 correspondence_matrix[:,ekf_ind] = np.inf
                 # and from 'new_objects'
                 new_objects.remove(val_ind)
-            
+                
             # reset the number of consecutive comparisons
             for ekf in self.EKFS:
                 if ekf.no_update_steps != 0:
                     ekf.hits = 0
+            
                     
             # 4. add new filters for new objects
             for ind in new_objects:            
@@ -294,7 +299,6 @@ class multiEKF(object):
                 self.EKFS.append(ekf)
                     
             # 5. forget bad filters (long no update, huge covs, etc.) 
-            
             
             #delete unconfirmed_tracks
             old_colors = []
@@ -333,9 +337,9 @@ class multiEKF(object):
                 #print(f'Муравей {i} цвета {ekf.color} не обновлялся шагов: {ekf.no_update_steps}')
                 if ekf.no_update_steps >= TrackState.Del_conf_steps:
                     obj_to_remove.append(i)
-                    if ekf.is_confirmed:
+                    if ekf.is_confirmed():
                         ekf.track = ekf.track[:-1 * TrackState.Del_conf_steps]
-                        self.deleted_conf_ants.append(ekf)
+                        self.deleted_conf_ants = np.append(self.deleted_conf_ants, ekf)
             for index in sorted(obj_to_remove, reverse=True):
                 color_to_use_AGAIN = self.EKFS[index].color
                 old_colors.append(color_to_use_AGAIN)
@@ -351,6 +355,36 @@ class multiEKF(object):
             self.color = iter(old_colors)
             old_colors = []         
             
+            # filter to not go out of frame
+            obj_out_of_frames = []
+            for i, ekf in enumerate(self.EKFS):
+                if ekf.x[0] >= self.xlim:
+                    ekf.x = ekf.track[-2].tolist()
+                    ekf.x[0] = self.xlim
+                    ekf.track[-1] = np.array([self.xlim, ekf.track[-2][1], ekf.track[-2][2], ekf.track[-2][3], ekf.track[-2][4]]).astype(int)
+                    obj_out_of_frames.append(i)
+                if ekf.x[1] >= self.ylim:
+                    ekf.x = ekf.track[-2].tolist()
+                    ekf.x[1] = self.ylim
+                    ekf.track[-1] = np.array([ekf.track[-2][0], self.ylim, ekf.track[-2][2], ekf.track[-2][3], ekf.track[-2][4]]).astype(int)
+                    obj_out_of_frames.append(i)
+                if ekf.x[0] <= 0:
+                    ekf.x = ekf.track[-2].tolist()
+                    ekf.x[0] = 0
+                    ekf.track[-1] = np.array([0, ekf.track[-2][1], ekf.track[-2][2], ekf.track[-2][3], ekf.track[-2][4]]).astype(int)
+                    obj_out_of_frames.append(i)
+                if ekf.x[1] <= 0:
+                    ekf.x = ekf.track[-2].tolist()
+                    ekf.x[1] = 0
+                    ekf.track[-1] = np.array([ekf.track[-2][0], 0, ekf.track[-2][2], ekf.track[-2][3], ekf.track[-2][4]]).astype(int)
+                    obj_out_of_frames.append(i)
+            '''
+            for index in sorted(obj_out_of_frames, reverse=True):
+                for err in self.EKFS[index].error:
+                    self.deleted_ants_error.append(err)
+                del self.EKFS[index]
+            '''
+            
             #УДАЛИ, ЭТО ДЛЯ ПРОВЕРКИ СОСТОЯНИЙ ТРЕКА
             for ekf in self.EKFS:
                 ekf.check_color()
@@ -362,12 +396,22 @@ class multiEKF(object):
             ants.append(ekf.x)
         return np.array(ants)
     
-    
+    def draw_tracks_cv2(self, frame, color = None):
+        for ekf in self.EKFS:
+            track = np.array(ekf.track).astype(int)
+            points = np.array(track[:,[0,1]])
+            points = points.reshape((-1, 1, 2))
+            
+            image = cv2.polylines(frame, [points], isClosed=False, color=ekf.color, thickness=2)
+            
+        return image
+        
+        
     def draw_tracks(self, H, ax, color = None):
         #color = iter(cm.rainbow(np.linspace(0, 1, len(self.EKFS))))
         for ekf in self.EKFS:
             # plot track
-            track = np.array(ekf.track)
+            track = np.array(ekf.track).astype(int)
             c = ekf.color 
             x = ekf.x[0]
             y = ekf.x[1]
@@ -387,7 +431,7 @@ class multiEKF(object):
             point_C = (x + ARROW_LEN * np.cos(a - delta_a), y + ARROW_LEN * np.sin(a - delta_a))
             p = plt.Polygon((point_A, point_B, point_C), fill=True,closed=True, facecolor=c, alpha=0.2, edgecolor=c)
             ax.add_patch(p)
-            
+        
     # plot speed
     def draw_speed(self, ax, dt = 0.2, color = 'w', N = 3):
         for ekf in self.EKFS:
@@ -405,23 +449,84 @@ class multiEKF(object):
                 y.append(new_y)
             ax.plot(x, y, color = color, linestyle = '--')
     
+    '''
     def write_tracks(self, yml_filename):
         yaml_data = []
         #yaml.dump(OrderedDict({'name': filename, 'FPS': fps, 'weight': w, 'height': h}), f)
         for ekf in self.EKFS:
             if ekf.is_confirmed:
-                yaml_data.append(OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()}))
+                #yaml_data.append(OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()}))
+                yaml_data.append({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()})
                 #yaml.dump(OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()}), f)
-                    
+            
+        print("--все настоящие добавлены", len(self.EKFS))
         for ekf in self.deleted_conf_ants:
-            yaml_data.append(OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()}))
-            #yaml.dump(OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track[:-TrackState.Del_conf_steps]).tolist()}), f)
-        data = OrderedDict({'trackes': yaml_data})
-        with open(yml_filename, 'w') as f:
-            yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
-            yaml.dump(data, f)
+            #yaml_data.append(OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()}))
+            yaml_data.append({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()})
+            #yaml.dump(OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()}), f)
+        print("--все удаленные добавлены", self.deleted_conf_ants.shape[0])
+        #yaml_data = OrderedDict({'trackes': yaml_data})
+        yaml_data = {'trackes': yaml_data}
+        print(f"--попытка записать, {sys.getsizeof(yaml_data)} bytes")
         
-
+        gc.collect()
+        with open(yml_filename, 'w') as f:
+            #yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
+            yaml.safe_dump(yaml_data, f, sort_keys=False)
+    '''
+    def write_tracks(self, txt_name):
+        counter = 0
+        with open(txt_name, "w") as file:
+            print(f'всего треков {len(self.EKFS)} + {self.deleted_conf_ants.shape[0]}')
+            for ekf in self.EKFS:
+                if ekf.is_confirmed():
+                    s1 = str(counter) + ' ' + str(ekf.frame_idx) + ' '
+                    s2 = ''
+                    for i in np.array(ekf.track).tolist():
+                        s2 += ' '.join(map(str, i)) + ' '
+                    file.write(s1 + s2 + '\n')
+                    counter += 1
+            for ekf in self.deleted_conf_ants:
+                s1 = str(counter) + ' ' + str(ekf.frame_idx) + ' '
+                s2 = ''
+                for i in np.array(ekf.track).tolist():
+                        s2 += ' '.join(map(str, i)) + ' '
+                file.write(s1 + s2 + '\n')
+                counter += 1
+        print(f'всего подтвержденных треков {counter}')
+    '''
+    def write_tracks(self, yml_filename):      
+        with open(yml_filename, 'a') as f:
+            yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
+            for ekf in self.EKFS:
+                if ekf.is_confirmed:
+                    yaml.dump(OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()}), f)
+                    gc.collect()
+            for ekf in self.deleted_conf_ants:
+                yaml.dump(OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()}), f)
+     
+    
+    def write_tracks(self, yml_filename):
+        for ekf in self.EKFS:
+            if ekf.is_confirmed:
+                datas = read_yaml(yml_filename)
+                print(datas)
+                print(len(datas))
+                a = OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()})
+                datas.append(a)
+                with open(yml_filename, 'w') as f:
+                    yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
+                    yaml.dump(datas, f)           
+        for ekf in self.deleted_conf_ants:
+            datas = read_yaml(yml_filename)
+            print(f'{len(datas)}/{self.deleted_conf_ants.shape[0]}')
+            a = OrderedDict({'frame_idx': ekf.frame_idx, 'track': np.array(ekf.track).tolist()})
+            datas.append(a)
+            with open(yml_filename, 'w') as f:
+                yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
+                yaml.dump(datas, f)
+                
+        ''' 
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import mahalanobis
 if __name__ == '__main__':

@@ -2,8 +2,7 @@ import numpy as np
 import glob
 import os
 import argparse
-from overlay_intersection import read_boxes
-from universal_intersection import find_kp
+from universal_intersection import find_kp, read_boxes
 from RCNN_model import get_model
 from universal_RCNN_test import one_image_test
 import torch
@@ -108,8 +107,8 @@ def pdj_one_image(pred_b, annot_bboxes, aanot_kp, pred_kp):
             
 if __name__ == '__main__':        
     parser = argparse.ArgumentParser()  
-    parser.add_argument('--test_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/Test_data', help="path to folder with images and annot", type=str)
-    parser.add_argument('--model_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230207-161545/full_weights.pth', help="path to weights", type=str)
+    parser.add_argument('--test_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/Test_data', help="path to folder with images and annot", type=str)
+    parser.add_argument('--model_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230216-180517/best_weights.pth', help="path to weights", type=str)
     parser.add_argument('conf_threshold', nargs='?', default=0.7, help="Confident threshold for boxes", type=float)
     parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes", type=float)
     parser.add_argument('iou_threshold', nargs='?', default=0.3, help="IOU threshold for boxes", type=float)

@@ -494,12 +494,12 @@ def visualize_from_yml(yml_path, video_path, pred_video_path):
     
 if __name__ == '__main__':       
     parser = argparse.ArgumentParser()
-    parser.add_argument('test_data_path', nargs='?', default="/windows/d/ant_detection/dynamic_density/18.08.20 Fp2' плос2.mp4", help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
-    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230207-161545/full_weights.pth', help="Specify weights path", type=str)
+    parser.add_argument('test_data_path', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/18.08.20 Fp2' плос2.mp4", help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230216-180517/full_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('draw_targets', nargs='?', default=False, help="True - will draw targets, False - will not", type=bool)
     parser.add_argument('conf_threshold', nargs='?', default=0.7, help="Confident threshold for boxes", type=float)
-    parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes, in overlay zones", type=float)
-    parser.add_argument('iou_threshold', nargs='?', default=0.18, help="IOU threshold for boxes", type=float)
+    parser.add_argument('nms_threshold', nargs='?', default=0.15, help="Non maximum suppression threshold for boxes, in overlay zones", type=float)
+    parser.add_argument('iou_threshold', nargs='?', default=0.1, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
     parser.add_argument('splits_vertical', nargs='?', default=3, help="Num of pictures in w-axis", type=int)

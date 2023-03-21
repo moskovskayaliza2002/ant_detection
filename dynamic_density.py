@@ -8,6 +8,22 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import xlrd
 
+
+def read_tracks_from_txt(path):
+    tracks = []
+    last_no = 0
+    with open(path) as f:
+        for i in f:
+            dic = {}
+            a = list(map(int, i[:-2].split(' ')))
+            no = a[0]
+            frame_ind = a[1]
+            a = np.array(a[2:]).reshape((-1, 5)).tolist()
+            dic[frame_ind] = a
+            tracks.append(dic)
+    return tracks
+    
+    
 def read_coords_yaml(yaml_path):
     with open(yaml_path) as f:
         yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
@@ -31,7 +47,7 @@ def is_points_in(coords, point):
         j = i
     return result
     
-    
+'''    
 def split_1_min(start_frame, data, FPS):
     distance = FPS * 60
     tracks_minuta = []
@@ -93,32 +109,89 @@ def split_1_min(start_frame, data, FPS):
     print(f"Количество треков {counter}")
     return tracks_minuta
 
+'''
+def split_1_min(start_frame, data, FPS):
+    distance = FPS * 60
+    tracks_minuta = []
+    counter = 0
+    new_track = []
+    print("**************************new track************************")
+    print(f'shape {distance, 5}')
+    for track in data:
+        frame_ind = list(track.keys())[0]
+        tr = list(track.values())[0]
+        if frame_ind == start_frame:
+            new_track = [[-1, -1, -1, -1, -1]] * distance
+            if len(tr) >= distance:
+                new_track = tr[:distance]
+            else:
+                end = np.array([[-1, -1, -1, -1, -1]] * (distance - len(tr)))
+                new_track = np.row_stack((np.array(tr), end)).tolist()
+                #new_track[:len(track.value())] = track['track']
+            
+            if np.array(new_track).shape != (distance, 5):
+                print("Размер изменился в пункте 1")
+            
+        elif frame_ind < start_frame:
+            new_track = [[-1, -1, -1, -1, -1]] * distance
+            diffence = start_frame - frame_ind
+            if len(tr[diffence:]) != 0:
+                #new_track = [[-1, -1, -1, -1, -1]] * distance
+                if len(tr[diffence:]) >= distance:
+                    new_track = tr[diffence:diffence + distance]
+                else:
+                    end = np.array([[-1, -1, -1, -1, -1]] * (distance - len(tr[diffence:])))
+                    new_track = np.row_stack((np.array(tr[diffence:]), end)).tolist()
+                    #new_track[:len(tr)] = tr[diffence:]
+                    
+                
+            if np.array(new_track).shape != (distance, 5):
+                print("Размер изменился в пункте 2")
+                
+        elif frame_ind > start_frame:
+            new_track = [[-1, -1, -1, -1, -1]] * distance
+            diffence = frame_ind - start_frame
+            if len(tr) >= distance - diffence:
+                if distance - diffence > 0:
+                    new_track[diffence:] = tr[:distance-diffence]
+                if np.array(new_track).shape != (distance, 5):
+                    print("Размер изменился в пункте 3.1", np.array(new_track).shape)
+    
+            else:
+                begin = np.array([[-1,-1,-1,-1,-1]] * diffence)
+                begin_center = np.vstack((begin, np.array(tr)))
+                ending =  np.array([[-1,-1,-1,-1,-1]] * (distance - len(tr) - diffence))
+                new_track = np.vstack((begin_center, ending)).tolist()
+                if np.array(new_track).shape != (distance, 5):
+                    print("Размер изменился в пункте 3.2", np.array(new_track).shape)
+            
+        if new_track != [[-1, -1, -1, -1, -1]] * distance:
+            counter += 1
+            tracks_minuta.append([new_track])
+    
+    return tracks_minuta
+
 
 def check_track(track, coords):
     steps_out_of_area = 0
     times_he_walk_in = 0
     any_point_in_area = False
     for point in track:
-        if is_points_in(coords, [point[0], point[1]]) and not any_point_in_area:
-            times_he_walk_in += 1
-        
-        if not is_points_in(coords, [point[0], point[1]]):
-            steps_out_of_area += 1
-        
-        if is_points_in(coords, [point[0], point[1]]):
-            if steps_out_of_area < 4:
-                times_he_walk_in -= 1
-            steps_out_of_area = 0
+        if type(point) == int:
+            pass
+        else:
+            if is_points_in(coords, [point[0], point[1]]) and not any_point_in_area:
+                times_he_walk_in += 1
             
-        any_point_in_area = is_points_in(coords, [point[0], point[1]])
-        '''
-        elif is_points_in(coords, [point[0], point[1]]):
-            any_point_in_area = True
-        elif not is_points_in(coords, [point[0], point[1]]):
-            any_point_in_area = False
-        '''
-    #if times_he_walk_in != 0:
-        #print(f"один муравей побывал тут {times_he_walk_in} раз")
+            if not is_points_in(coords, [point[0], point[1]]):
+                steps_out_of_area += 1
+            
+            if is_points_in(coords, [point[0], point[1]]):
+                if steps_out_of_area < 4 and steps_out_of_area != 0:
+                    times_he_walk_in -= 1
+                steps_out_of_area = 0
+            
+            any_point_in_area = is_points_in(coords, [point[0], point[1]])
     return times_he_walk_in
         
 '''
@@ -134,68 +207,78 @@ def counter_per_min(tracks, area):
     return NUM_ANTS
 
 
-def draw_graficks(density, path, csv_path):
+def draw_graficks(density, csv_path):
     #сделай функцию считывания cvc файла
     real_data = read_cvc(csv_path)
-    real_data.append(0)
-    #f, ax = plt.subplots(1, 2, figsize=(40, 20))
+    #real_data.append(0)
     #plt.ion()
+    #presicion(real_data, density)
     plt.title("Динамическая плотность") # заголовок
     plt.xlabel("Минута") # ось абсцисс
     plt.ylabel("Количество особей") # ось ординат
     plt.grid() # включение отображение сетки
-    plt.plot(range(len(density)), density, 'r--')
+    plt.plot(range(len(density)), density, linestyle = 'dotted', 'r')
     plt.plot(range(len(real_data)), real_data, 'b--')
-    '''
-    ax[0].set_title('Автоматический подсчет', fontsize=12)
-    ax[0].plot(range(len(density)), density, "r-")  # построение графика
-    ax[0].grid(True)
-    ax[0].set_xlabel('минута')
-    ax[0].set_ylabel('количество особей')
-    
-    ax[1].set_title('Ручной подсчет', fontsize=12)
-    ax[1].plot(range(len(real_data)), real_data, "r-")
-    ax[1].grid(True)
-    ax[1].set_xlabel('минута')
-    ax[1].set_ylabel('количество особей')
-    '''
+
     plt.legend(['Автоматический подсчет', 'Ручной подсчет'], loc = 'best')
     plt.show()
     #plt.savefig(path + '/density.png')
     
-   
+def presicion(real_data, pred_data):
+    gt = np.array(real_data)
+    pr = np.array(pred_data)
+    error = gt - pr
+    print(gt)
+    print(pr)
+    print(error)
+    # 1 - Среднеквадратическое отклонение ошибки прогнозируемой модели
+    pres = (1 - np.mean(np.abs(error) / np.abs(pr))) * 100
+    print(f"Точность определения динамической плотности составляет {pres}%")
+    
+    
+    
 def read_cvc(path):
     # YOU MUST PUT sheet_name=None TO READ ALL CSV FILES IN YOUR XLSM FILE
     df = pd.read_excel(path, sheet_name='Лист1')
-    density = df['кол-во муравьев зашедших в квадрат за минуту'].values.tolist()
-    print
+    density = df['кол-во мур-в квадрате (пересмотр 20.03.23)'].values.tolist()
+    print(density)
     return density
     
-
-    # prints all sheets
-    #print(df)
-    
-def count_all_minutas(coord_yaml, tracks_yaml, video_path):
+def count_all_minutas(coord_yaml, tracks_path, video_path):
     cap = cv2.VideoCapture(video_path)
     print("INFO: open video...")
-    FPS = int(cap.get(cv2.CAP_PROP_FPS))
+    while not cap.isOpened():
+        cap = cv2.VideoCapture(video_path)
+    #FPS = int(cap.get(cv2.CAP_PROP_FPS))
+    FPS = 30
     number_of_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     area = read_coords_yaml(coord_yaml)
     print("INFO: readimg tracks...")
-    all_tracks = read_yaml(tracks_yaml)
+    #all_tracks = read_yaml(tracks_yaml)
+    all_tracks = read_tracks_from_txt(tracks_path)
+    #print(all_tracks)
     print(f"ВСЕГО ТРЕКОВ В ФАЙЛЕ {len(all_tracks)}")
+    print(f"ВСЕГО КАДРОВ: {number_of_frames}")
+    print(FPS)
     distance = FPS * 60
     all_density = []
-    counter = 1
-    for i in range(0, int(number_of_frames), distance):
+    counter = 0
+    print(distance)
+    for i in range(1, int(number_of_frames) + 1, distance):
         #print(f'from {i} to {i + distance}')
-        tracks_minute = np.squeeze(split_1_min(i, all_tracks, FPS)).tolist()
+        tracks_minute = []
+        if i != 1 and i + distance < number_of_frames:
+            tracks_minute = np.squeeze(split_1_min(i+(1*counter), all_tracks, FPS)).tolist()
+            print(f'from {i+(1*counter)} to {i+(1*counter) + distance} frames')
+        else:
+            tracks_minute = np.squeeze(split_1_min(i, all_tracks, FPS)).tolist()
+            print(f'from {i} to {i + distance} frames')
+        print(f'треков за {counter} минуту: {len(tracks_minute)}')
         #tracks_minute = split_1_min(i, all_tracks, FPS)
         #print("Итоговый массив", np.array(tracks_minute).shape)
         #print('tracks: ', tracks_minute)
         ANTS = counter_per_min(tracks_minute, area)
         print(f'За {counter} минуту плотность составила {ANTS}')
-        print(f'from {i} to {i + distance}')
         counter += 1
         all_density.append(ANTS)
     return all_density
@@ -204,14 +287,14 @@ def count_all_minutas(coord_yaml, tracks_yaml, video_path):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('tracks_yaml', nargs='?', default="/home/ubuntu/ant_detection/dynamic_density/prombem_2minute_tracks.yml", help="Specify yaml track path", type=str)
-    parser.add_argument('coord_yaml', nargs='?', default="/home/ubuntu/ant_detection/dynamic_density/coods_21m.yml", help="Specify yaml coords path", type=str)
-    parser.add_argument('input_video_path', nargs='?', default="/home/ubuntu/ant_detection/dynamic_density/prombem_2minute.mp4", help="Specify input video path", type=str)
-    parser.add_argument('csv_path', nargs='?', default="/home/ubuntu/ant_detection/videos/18.08.20 Fp2' плос2.xlsx", help="Specify path to gt data", type=str)
+    parser.add_argument('tracks_path', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/18.08.20 Fp2' плос2_tracks.txt", help="Specify yaml track path", type=str)
+    parser.add_argument('coord_yaml', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/plos2.yml", help="Specify yaml coords path", type=str)
+    parser.add_argument('input_video_path', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/18.08.20 Fp2' плос2.mp4", help="Specify input video path", type=str)
+    parser.add_argument('csv_path', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/18.08.20 Fp2' плос2_версия_2023.03.20.xlsx", help="Specify path to gt data", type=str)
     #parser.add_argument('out_video_path', nargs='?', default='/home/ubuntu/ant_detection/dynamic_density/cut6s_tracks.mp4', help="Specify output video path", type=str)
     args = parser.parse_args()
-    path = '/home/ubuntu/ant_detection/dynamic_density/'
-    draw_graficks(count_all_minutas(args.coord_yaml, args.tracks_yaml, args.input_video_path), path, args.csv_path)
+    #path = '/home/ubuntu/ant_detection/dynamic_density/'
+    draw_graficks(count_all_minutas(args.coord_yaml, args.tracks_path, args.input_video_path), args.csv_path)
     
     #read_cvc("/home/ubuntu/ant_detection/dynamic_density/18.08.20 Fp2' плос2.xlsx")
     

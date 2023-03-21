@@ -1,5 +1,5 @@
 import random
-from overlay_intersection import read_boxes, write_bbox, find_bbox, find_kp, resize_bboxes_kps
+from universal_intersection import read_boxes, write_bbox, find_bbox, find_kp, resize_bboxes_kps
 import os
 import cv2
 import shutil
@@ -25,10 +25,10 @@ def crop_image(image):
     new_h = random.randint(Sizes.Min_new_h, Sizes.Max_new_h)
     
     crop = image[y_start : y_start + new_h, x_start : x_start + new_w]
-    crop = cv2.resize(crop, (300, 300), interpolation = cv2.INTER_AREA)
+    crop = cv2.resize(crop, (224, 224), interpolation = cv2.INTER_AREA)
     
     return crop, x_start, y_start, x_start + new_w, y_start + new_h
-    
+
 def vis_check(im, bboxes, keypoints):
     for bbox in bboxes:
         start_point = (bbox[0], bbox[1])
@@ -49,7 +49,8 @@ def vis_check(im, bboxes, keypoints):
     cv2.destroyAllWindows()
     
 if __name__ == '__main__':
-    parser.add_argument('new_root_path', nargs='?', default="/home/ubuntu/ant_detection/dataset/augmentation", help="Specify the path to the folder to create new data", type=str)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('new_root_path', nargs='?', default="/home/ubuntu/ant_detection/new_dataset/augmentation", help="Specify the path to the folder to create new data", type=str)
     parser.add_argument('old_root_path', nargs='?', default="/home/ubuntu/ant_detection/real_im_annot", help="Specify the path to the folder to original data", type=str)
     args = parser.parse_args()
     new_root_path = args.new_root_path
@@ -67,7 +68,7 @@ if __name__ == '__main__':
             os.mkdir(i) 
     
     #c count + 1 начнется нумерация
-    counter = 863
+    counter = 1205
     for f in os.scandir(old_root_path + '/images'):
         if f.is_file() and f.path.split('.')[-1].lower() == 'png':
             original_image = cv2.imread(f.path)
@@ -79,10 +80,14 @@ if __name__ == '__main__':
             for i in range(70):
                 cr_im, left_x, left_y, right_x, right_y = crop_image(original_image)
                 ants_counter, noise_counter, new_bb, new_kp = resize_bboxes_kps(original_bboxs, original_keypoints, left_x, left_y, right_x, right_y)
+                print("идет процесс")
                 if ants_counter != 0 and noise_counter == 0:
-                    #resize_im = cv2.resize(cr_im, (300, 300), interpolation = cv2.INTER_AREA)
                     cv2.imwrite(new_images_path + '/image' + str(counter + 1) + '.png', cr_im)
                     write_bbox(new_bb, new_bboxes_path + '/bbox' + str(counter + 1) + '.txt')
                     write_bbox(new_kp, new_keypoints_path + '/keypoint' + str(counter + 1) + '.txt')
-                    #vis_check(cr_im, new_bb, new_kp)
                     counter += 1
+                    
+    test_image = cv2.imread('/home/ubuntu/ant_detection/new_dataset/augmentation/images/image1208.png')
+    test_bb = read_boxes('/home/ubuntu/ant_detection/new_dataset/augmentation/bboxes/bbox1208.txt')
+    test_kp, _ = find_kp(1208, '/home/ubuntu/ant_detection/new_dataset/augmentation')
+    visualize(test_image, test_bb, test_kp)

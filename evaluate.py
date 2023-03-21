@@ -45,9 +45,9 @@ def evaluate(dir_path, datasets_path, conf_threshold, nms_threshold, iou_thresho
 
 if __name__ == '__main__':   
     parser = argparse.ArgumentParser()
-    parser.add_argument('models_path', nargs='?', default="/home/ubuntu/ant_detection/dataset/rcnn_models", help="Specify the path either to the folder with models weights", type=str)
+    parser.add_argument('models_path', nargs='?', default="/home/ubuntu/ant_detection/new_dataset/rcnn_models", help="Specify the path either to the folder with models weights", type=str)
     parser.add_argument('--iuo_tresh', nargs='?', default=0.5, help="treshold for TP and FP", type=float)
-    parser.add_argument('conf_threshold', nargs='?', default=0.7, help="Confident threshold for boxes", type=float)
+    parser.add_argument('conf_threshold', nargs='?', default=0.8, help="Confident threshold for boxes", type=float)
     parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes", type=float)
     parser.add_argument('iou_threshold', nargs='?', default=0.3, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
@@ -55,6 +55,6 @@ if __name__ == '__main__':
     parser.add_argument('splits_vertical', nargs='?', default=4, help="Num of pictures in w-axis", type=int)
     parser.add_argument('splits_horizontal', nargs='?', default=3, help="Num of pictures in h-axis", type=int)
     args = parser.parse_args()
-    #datasets_path = ['/home/ubuntu/ant_detection/dataset/Test_data', '/home/ubuntu/ant_detection/dataset/Train_not_cropped', '/home/ubuntu/ant_detection/test_on_article_data/indoor', '/home/ubuntu/ant_detection/test_on_article_data/outdoor']
-    datasets_path = ['/home/ubuntu/ant_detection/delete/data1','/home/ubuntu/ant_detection/delete/data2','/home/ubuntu/ant_detection/delete/data3']
+    datasets_path = ['/home/ubuntu/ant_detection/dataset/Test_data', '/home/ubuntu/ant_detection/test_on_article_data/indoor', '/home/ubuntu/ant_detection/test_on_article_data/outdoor']
+    #datasets_path = ['/home/ubuntu/ant_detection/delete/data1','/home/ubuntu/ant_detection/delete/data2','/home/ubuntu/ant_detection/delete/data3']
     evaluate(args.models_path, datasets_path, args.conf_threshold, args.nms_threshold, args.iou_threshold, args.iuo_tresh, args.overlay_w, args.overlay_h, args.splits_vertical, args.splits_horizontal)

@@ -1,6 +1,6 @@
 import yaml
 import argparse
-from RCNN_overlay_test import read_yaml
+from universal_RCNN_test import read_yaml
 import matplotlib.pyplot as plt
 import numpy as np
 from ekf import multiEKF
@@ -8,20 +8,21 @@ import matplotlib.image as mpimg
 import cv2
 import os
 import shutil
+import gc
 
 ARROW_LEN = 50
 D_ANT_COLOR = 'w'
 D_ANT_SYM = 'o'
-ANT_SCORE_MIN = 0.70
+ANT_SCORE_MIN = 0.9
 MEKF = None
 R_diag = np.array([1.22, 1.75, 0.39])
 l = 0.00001
 
-Q = np.array([[5, 0, 0, 0, 0], 
-              [0, 5, 0, 0, 0],
-              [0, 0, 5, 0, 0],
-              [0, 0, 0, 10, 0],
-              [0, 0, 0, 0, 10]])
+Q = np.array([[7, 0, 0, 0, 0], 
+              [0, 7, 0, 0, 0],
+              [0, 0, 0.1, 0, 0],
+              [0, 0, 0, 7, 0],
+              [0, 0, 0, 0, 5]])
 '''
 Q = np.array([[2.63795021e+00, 4.31565031e-02, 4.34318028e-03, -2.20547258e+00, 2.13165056e-01],
               [4.31565031e-02, 2.17205029e+00, -2.80823458e-03, -8.82016377e+00, -7.06690445e-02],
@@ -31,11 +32,26 @@ Q = np.array([[2.63795021e+00, 4.31565031e-02, 4.34318028e-03, -2.20547258e+00, 
 '''
 #Q_diag = np.array([l, l, l, l, l])
 dt = 0.1
-# евклидово
-mh = 75
+# коэфф для евклидова
+#mh = 75
 #коэфф для махалонобиса
 #mh = 12
+#коэфф для временного порога
+mh = 60
 P_limit = np.inf
+
+# Функция обработки фрейма, для сохранения
+def proceed_frame_cv2(frame, frame_v, W, H, dt):
+    global MEKF
+    ants = get_ants(frame, dt)
+    image = plot_ants_cv2(frame_v, ants)
+    if MEKF is None:
+        MEKF = multiEKF(ants, R_diag,  Q, dt, mh, P_limit, W, H, int(frame['frame']))
+    else:
+        MEKF.proceed(ants, dt, int(frame['frame']))
+    image = MEKF.draw_tracks_cv2(image)
+    return image
+    
 
 # Функция обработки фрейма, c визуализацией
 def proceed_frame(frame, W, H, ax, dt):
@@ -93,6 +109,12 @@ def plot_ants(ax, ants, H, dt, color = D_ANT_COLOR):
     for i in range(ants.shape[0]):
         ax.plot(ants[i,1], ants[i,2], color+D_ANT_SYM, alpha = ants[i,0])
         #ax.arrow(ants[i,1], ants[i,2], ARROW_LEN * np.cos(ants[i,3]), ARROW_LEN * np.sin(ants[i,3]), color = color, alpha = ants[i,0])
+        
+def plot_ants_cv2(frame, ants, color = D_ANT_COLOR):
+    image = frame
+    for i in range(ants.shape[0]):
+        image = cv2.circle(image, (int(ants[i, 1]), int(ants[i, 2])), radius=5, color=(255,255,255), thickness=-1)
+    return image
             
         
 def normalize_2d(matrix):
@@ -127,8 +149,9 @@ if __name__ == '__main__':
     #file_ = 'cut50s'
     #file_ = 'empty_center'
     file_ = "18.08.20 Fp2' плос2"
-    #file_ = "video4"
+    #file_ = "video1"
     #file_ = "prombem_2minute"
+    #file_ = "video0"
     
     '''
     parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
@@ -136,10 +159,10 @@ if __name__ == '__main__':
     parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/frames_track', help="Full path to directory to save frames", type=str)
     parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
     '''
-    parser.add_argument('--yaml_path', nargs='?', default=f'/windows/d/ant_detection/dynamic_density/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
-    parser.add_argument('--video_path', nargs='?', default=f'/windows/d/ant_detection/dynamic_density/{file_}.mp4', help="Full path to video file", type=str)
-    parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/frames_track', help="Full path to directory to save frames", type=str)
-    parser.add_argument('--tracks_save_path', nargs='?', default=f'//windows/d/ant_detection/dynamic_density/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
+    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/full_video/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
+    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/full_video/{file_}.mp4', help="Full path to video file", type=str)
+    parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/ant_detection/delete', help="Full path to directory to save frames", type=str)
+    parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/full_video/{file_}_tracks.txt', help="Full path to directory to save trackes in yaml", type=str)
     parser.add_argument('--visualisation', nargs='?', default=True, help="Make visualization or file with tracks only", type=bool)
     
     args = parser.parse_args()
@@ -154,10 +177,20 @@ if __name__ == '__main__':
     os.mkdir(pic_save_path)
 
     print(f"Loading video {args.video_path}...")
-    cap = cv2.VideoCapture(args.video_path)        
+    cap = cv2.VideoCapture(args.video_path)   
+    while not cap.isOpened():
+        cap = cv2.VideoCapture(args.video_path)
+        cv2.waitKey(1000)
+        print("Openning the file...")
+        
     maxim_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     count = 1
     ax = None
+    print(f"всего {len(ANT_DATA['frames'])}")
+    name = args.video_path[args.video_path.rfind('/'):args.video_path.rfind('.')]
+    new_filename = args.video_path[:args.video_path.rfind('/')] + name + '_tracks' + '.mp4'
+    
+    '''
     if args.visualisation:
         fig, ax = plt.subplots()  
         plt.ion()
@@ -166,7 +199,6 @@ if __name__ == '__main__':
             ax.clear()
             print('Frame:', count, '/', maxim_frames)
             ret, frame_v = cap.read()
-            print(frame_v.shape)
             ax.imshow(frame_v)
             ax.set_title(f"Frame {list(frame.keys())[0]}")
             plt.xlim(0, ANT_DATA['weight'])
@@ -176,11 +208,34 @@ if __name__ == '__main__':
             count += 1
             plt.pause(0.1)
             plt.show()
-    else:
-        for frame in ANT_DATA['frames']:    
+    '''
+    if args.visualisation:
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        size = (int(w), int(h))
+        out = cv2.VideoWriter(new_filename, fourcc, fps, size, True)
+        for frame in ANT_DATA['frames']:
+            print('Frame:', count, '/', maxim_frames)
             ret, frame_v = cap.read()
+            pred_im = proceed_frame_cv2(frame, frame_v, w, h, dt)
+            #cv2.imshow('image', frame_v)
+            #cv2.waitKey(0)
+            out.write(pred_im)
+            count += 1
+        out.release()
+        cap.release()
+    else:
+        del cap
+        print("Начало обработки")
+        for frame in ANT_DATA['frames']:
+            #ret, frame_v = cap.read()
             proceed_frame_nv(frame, ANT_DATA['weight'], ANT_DATA['height'], dt)
-        
+     
+    del ANT_DATA
+    gc.collect()
+    print("Запись треков")
     MEKF.write_tracks(args.tracks_save_path)
         
     all_errors = []

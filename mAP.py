@@ -1,6 +1,6 @@
 import numpy as np
 import argparse
-from overlay_intersection import read_boxes
+from universal_intersection import read_boxes
 import glob
 import os
 from RCNN_model import get_model
@@ -129,7 +129,7 @@ if __name__ == '__main__':
     file_ = 'cut50s'
     parser.add_argument('--test_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/Test_data', help="path to folder with images and annot", type=str)
     parser.add_argument('--iuo_tresh', nargs='?', default=0.5, help="treshold for TP and FP", type=float)
-    parser.add_argument('--model_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230209-170239/full_weights.pth', help="path to weights", type=str)
+    parser.add_argument('--model_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230216-180517/full_weights.pth', help="path to weights", type=str)
     parser.add_argument('conf_threshold', nargs='?', default=0.7, help="Confident threshold for boxes", type=float)
     parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes", type=float)
     parser.add_argument('iou_threshold', nargs='?', default=0.3, help="IOU threshold for boxes", type=float)

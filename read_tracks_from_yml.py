@@ -70,9 +70,13 @@ def draw_speed(ekfs_track, ax, dt = 0.2, color = 'w', N = 3):
             
 def read_yaml(yml_filename):
     with open(yml_filename) as f:
-        yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
-        datas = list(yaml.safe_load_all(f))
-        return datas[0]['trackes']
+        #yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
+        datas = list(yaml.safe_load(f))
+        f.close()
+    if datas == []:
+        return []
+    else:
+        return datas[0]
     
 def visualize_from_yml(yml_path, video_path):#, pred_video_path):
     safe_video_path = '/home/ubuntu/ant_detection/dynamic_density/new_video'

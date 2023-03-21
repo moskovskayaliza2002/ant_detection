@@ -2,7 +2,7 @@ import torch
 import torchvision
 from RCNN_model import get_model
 from universal_RCNN_test import intersection_over_union, one_image_test
-from overlay_intersection import read_boxes
+from universal_intersection import read_boxes
 import numpy as np
 import argparse
 import glob
@@ -33,7 +33,7 @@ def plot_gist(data):
     ax.set_xticklabels(labels)
     ax.set_xlim(0.25, len(labels) + 0.75)
     ax.set_xlabel('Sample name')
-    plt.show()
+    plt.savefig('/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230216-180517/error.png')
 
 def get_orig_annot(im_path, root_path):
     #Из пути изображение берет номер и по этому номеру находит аннотации для этого изображения
@@ -151,8 +151,8 @@ def batch_test(root, model, device, conf_threshold, iou_threshold, nms_threshold
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/Train_data', help="Specify the full path to the folder with test data", type=str)
-    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230207-161545/best_weights.pth', help="Specify weights path", type=str)
+    parser.add_argument('test_data_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/Test_data', help="Specify the full path to the folder with test data", type=str)
+    parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230216-180517/best_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('conf_threshold', nargs='?', default=0.7, help="Confident threshold for boxes", type=float)
     parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes", type=float)
     parser.add_argument('iou_threshold', nargs='?', default=0.18, help="IOU threshold for boxes", type=float)

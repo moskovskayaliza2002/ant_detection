@@ -207,14 +207,17 @@ def visualize(image, bboxes, keypoints, image_original=None, bboxes_original=Non
         plt.show(block=True)
 
 # Функция обучения
-def train_rcnn(num_epochs, root, device, train_batch_size, test_batch_size, optim, learning_rate, weight_decay, lr_step):
+def train_rcnn(num_epochs, root, device, train_batch_size, test_batch_size, optim, learning_rate, weight_decay, lr_step, aug):
     #device = torch.device('cpu')
     #device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
     #KEYPOINTS_FOLDER_TEST = root + '/test_data'
     #KEYPOINTS_FOLDER_TRAIN = root + '/train_data'
     KEYPOINTS_FOLDER_TEST = root + '/Test_while_train_data'
-    KEYPOINTS_FOLDER_TRAIN = root + '/Train_data'
+    if aug:
+        KEYPOINTS_FOLDER_TRAIN = root + '/Train_data_with_aug'
+    else:
+        KEYPOINTS_FOLDER_TRAIN = root + '/Train_data'
     SAVING_WEIGHTS_PATH = root + '/rcnn_models/'
     
     if not os.path.exists(SAVING_WEIGHTS_PATH):
@@ -230,8 +233,8 @@ def train_rcnn(num_epochs, root, device, train_batch_size, test_batch_size, opti
     dataset_train = ClassDataset(KEYPOINTS_FOLDER_TRAIN, transform=train_transform(), demo=False)
     dataset_test = ClassDataset(KEYPOINTS_FOLDER_TEST, transform=None, demo=False)
 
-    data_loader_train = DataLoader(dataset_train, batch_size=train_batch_size, shuffle=True, collate_fn=collate_fn) # on gpu 5
-    gradient_accumulations = train_batch_size * 8 # real train batch gradient_accumulations
+    data_loader_train = DataLoader(dataset_train, batch_size=4, shuffle=True, collate_fn=collate_fn) # on gpu 5
+    gradient_accumulations = train_batch_size # real train batch gradient_accumulations
     data_loader_test = DataLoader(dataset_test, batch_size=test_batch_size, shuffle=False, collate_fn=collate_fn)
     
     model = get_model(num_keypoints = 2)
@@ -255,7 +258,7 @@ def train_rcnn(num_epochs, root, device, train_batch_size, test_batch_size, opti
     for epoch in range(num_epochs * 8):
         _, dictionary = train_one_epoch(model, optimizer, data_loader_train, device, epoch, print_freq=1000)
         print(dictionary)
-        batch_counter += train_batch_size
+        batch_counter += 4
         
         loss_class = dictionary['loss_classifier'].item()
         loss_bbox = dictionary['loss_box_reg'].item()
@@ -298,7 +301,7 @@ def train_rcnn(num_epochs, root, device, train_batch_size, test_batch_size, opti
     return model, SAVING_WEIGHTS_PATH
 
 
-def write_info(filename, root, device, epoch, train_batch, test_batch, optim, lr, weight_decay, step, start, finish):
+def write_info(filename, root, device, epoch, train_batch, test_batch, optim, lr, weight_decay, step, start, finish, aug):
     with open(filename, 'w') as file:
         file.write("Dataset: " + str(root) + "\n")
         file.write("Device: " + str(device) + "\n")
@@ -309,6 +312,7 @@ def write_info(filename, root, device, epoch, train_batch, test_batch, optim, lr
         file.write("Learning rate: " + str(lr) + "\n")
         file.write("Weight decay: " + str(weight_decay) + "\n")
         file.write("Step of lr (number epochs): " + str(step) + "\n")
+        file.write("Augmentation: " + str(aug) + "\n")
         file.write("Started: " + start + " finished: " + finish + "\n")
         file.close()
     
@@ -318,7 +322,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('root_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset', help="Specify main directory", type=str)
     parser.add_argument('num_epoch', nargs='?', default=100, help="Specify number of epoch", type=int)
-    parser.add_argument('train_batch_size', nargs='?', default=4, help="Specify batch size for train data", type=int)
+    parser.add_argument('train_batch_size', nargs='?', default=32, help="Specify batch size for train data", type=int)
     parser.add_argument('test_batch_size', nargs='?', default=4, help="Specify batch size for test data", type=int)
     parser.add_argument('device', nargs='?', default='gpu', help="Specify device type", type=str)
     args = parser.parse_args()
@@ -326,6 +330,8 @@ if __name__ == '__main__':
     parser.add_argument('learning_rate', nargs='?', default=0.0001, help="Specify learning rate", type=float)
     parser.add_argument('weight_decay', nargs='?', default=0.00005, help="Specify weight decay", type=float)
     parser.add_argument('lr_step', nargs='?', default=20, help="Specify learning rate step", type=int)
+    args = parser.parse_args()
+    parser.add_argument('augmentation', nargs='?', default=True, help="Specify learning rate step", type=bool)
     args = parser.parse_args()
     
     root_path = args.root_path
@@ -356,12 +362,12 @@ if __name__ == '__main__':
     struct_start = time.localtime(sec_start)
     start_time = time.strftime('%d.%m.%Y %H:%M', struct_start)
 
-    model, weights_path = train_rcnn(num_epoch, root_path, device, args.train_batch_size, args.test_batch_size, args.optim, args.learning_rate, args.weight_decay, args.lr_step)
+    model, weights_path = train_rcnn(num_epoch, root_path, device, args.train_batch_size, args.test_batch_size, args.optim, args.learning_rate, args.weight_decay, args.lr_step, args.augmentation)
     
     sec_finish = time.time()
     struct_finish = time.localtime(sec_finish)
     finish_time = time.strftime('%d.%m.%Y %H:%M', struct_finish)
     
-    write_info(weights_path + '/info.txt', root_path, args.device,  args.num_epoch, args.train_batch_size, args.test_batch_size, args.optim, args.learning_rate, args.weight_decay,  args.lr_step, start_time, finish_time)
+    write_info(weights_path + '/info.txt', root_path, args.device,  args.num_epoch, args.train_batch_size, args.test_batch_size, args.optim, args.learning_rate, args.weight_decay,  args.lr_step, start_time, finish_time, args.augmentation)
     
     print(f'Started {start_time} Finished {finish_time}')
