@@ -148,21 +148,22 @@ if __name__ == '__main__':
     #file_ = 'cut6s'
     #file_ = 'cut50s'
     #file_ = 'empty_center'
-    file_ = "18.08.20 Fp2' плос2"
+    #file_ = "18.08.20 Fp2' плос2"
     #file_ = "video1"
     #file_ = "prombem_2minute"
     #file_ = "video0"
-    
+    #file_ = "empty_center"
+    file_ = "FILE0009 1"
     '''
     parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
     parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}.mp4', help="Full path to video file", type=str)
     parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/frames_track', help="Full path to directory to save frames", type=str)
     parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
     '''
-    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/full_video/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
-    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/full_video/{file_}.mp4', help="Full path to video file", type=str)
+    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/sand_bg/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
+    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/sand_bg/{file_}.mp4', help="Full path to video file", type=str)
     parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/ant_detection/delete', help="Full path to directory to save frames", type=str)
-    parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/full_video/{file_}_tracks.txt', help="Full path to directory to save trackes in yaml", type=str)
+    parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/sand_bg/{file_}_tracks.txt', help="Full path to directory to save trackes in yaml", type=str)
     parser.add_argument('--visualisation', nargs='?', default=True, help="Make visualization or file with tracks only", type=bool)
     
     args = parser.parse_args()

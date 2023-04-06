@@ -494,7 +494,7 @@ def visualize_from_yml(yml_path, video_path, pred_video_path):
     
 if __name__ == '__main__':       
     parser = argparse.ArgumentParser()
-    parser.add_argument('test_data_path', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/18.08.20 Fp2' плос2.mp4", help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    parser.add_argument('test_data_path', nargs='?', default="/home/ubuntu/ant_detection/problems/sand_bg/FILE0009 1.mp4", help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230216-180517/full_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('draw_targets', nargs='?', default=False, help="True - will draw targets, False - will not", type=bool)
     parser.add_argument('conf_threshold', nargs='?', default=0.7, help="Confident threshold for boxes", type=float)
@@ -525,6 +525,11 @@ if __name__ == '__main__':
     else:
         print('*****************************DEVICE: CPU*****************************')
         
+    
+    sec_start = time.time()
+    struct_start = time.localtime(sec_start)
+    start_time = time.strftime('%d.%m.%Y %H:%M', struct_start)
+        
     test_model = get_model(2, model_path)
     
     if test_data_path[-3:] == 'png' or test_data_path[-3:] == 'jpg':
@@ -536,3 +541,9 @@ if __name__ == '__main__':
         full_video(test_data_path, test_model, device, draw_targets, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h, splits_vertical, splits_horizontal)
     else:
         batch_test(test_data_path, test_model, device, draw_targets, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h, splits_vertical, splits_horizontal)
+    
+    sec_finish = time.time()
+    struct_finish = time.localtime(sec_finish)
+    finish_time = time.strftime('%d.%m.%Y %H:%M', struct_finish)
+    
+    print(f'Started {start_time} Finished {finish_time}')

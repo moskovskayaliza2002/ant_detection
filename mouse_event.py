@@ -56,8 +56,8 @@ def show_polygon(im, coords, yml_path, v_path):
 if __name__ == '__main__':
     print("INFO: двойной клик левой кнопкой мыши поставит точку, двойной клик колесика отменит последнюю нарисованную точку")
     parser = argparse.ArgumentParser()
-    parser.add_argument('--video_path', nargs='?', default="/windows/d/ant_detection/dynamic_density/18.08.20 Fp2' плос2.mp4", help="path to video for dynamic density analysis", type=str)
-    parser.add_argument('--yaml_path', nargs='?', default='/windows/d/ant_detection/dynamic_density/plos2.yml', help="outputfile path with coordinates of rectangle points", type=str)
+    parser.add_argument('--video_path', nargs='?', default="/home/ubuntu/Downloads/FILE0009 1.mp4", help="path to video for dynamic density analysis", type=str)
+    parser.add_argument('--yaml_path', nargs='?', default='/home/ubuntu/ant_detection/problems/sand_bg/plos.yml', help="outputfile path with coordinates of rectangle points", type=str)
     ##path = '/home/ubuntu/ant_detection/polygon_data/Test_data/images/image446.png'
     args = parser.parse_args()
     

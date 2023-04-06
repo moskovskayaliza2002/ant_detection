@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import xlrd
-
+from shapely.geometry import Point, Polygon
 
 def read_tracks_from_txt(path):
     tracks = []
@@ -173,6 +173,7 @@ def split_1_min(start_frame, data, FPS):
 
 
 def check_track(track, coords):
+    BOUNDARY_STEPS = 5
     steps_out_of_area = 0
     times_he_walk_in = 0
     any_point_in_area = False
@@ -187,12 +188,47 @@ def check_track(track, coords):
                 steps_out_of_area += 1
             
             if is_points_in(coords, [point[0], point[1]]):
-                if steps_out_of_area < 4 and steps_out_of_area != 0:
+                if steps_out_of_area < BOUNDARY_STEPS and steps_out_of_area != 0:
                     times_he_walk_in -= 1
                 steps_out_of_area = 0
             
             any_point_in_area = is_points_in(coords, [point[0], point[1]])
     return times_he_walk_in
+
+def check_track_distance(track, coords):
+    DISTANCE_OUT_BONDARY = 0.01
+    last_time_in_area = False
+    times_he_walk_in = 0
+    points_out_of_boundary = []
+    times_he_walk_out = 0
+    for point in track:
+        if type(point) == int:
+            pass
+        else:
+            if is_points_in(coords, [point[0], point[1]]) and not last_time_in_area:
+                times_he_walk_in += 1
+            
+            if not is_points_in(coords, [point[0], point[1]]):
+                times_he_walk_out += 1
+            
+            if is_points_in(coords, [point[0], point[1]]):
+                if not check_dictance(coords, point, DISTANCE_OUT_BONDARY) and times_he_walk_out != 0:
+                    times_he_walk_in -= 1
+                times_he_walk_out = 0
+            
+            last_time_in_area = is_points_in(coords, [point[0], point[1]])
+                
+    return times_he_walk_in
+                
+    
+def check_dictance(coords, point, DISTANCE_OUT_BONDARY):
+    flag = False
+    poly = Polygon([(coords[0][0], coords[0][1]), (coords[1][0], coords[1][1]), (coords[2][0], coords[2][1]), (coords[3][0], coords[3][1])])
+    po = Point(point[0], point[1])
+    distance = poly.exterior.distance(po)
+    print(f"-----------------------------РАССТОЯНИЕ: {distance}-------------------------------------")
+    flag = distance >= DISTANCE_OUT_BONDARY
+    return flag
         
 '''
 tracks - tracks in current minute
@@ -202,14 +238,15 @@ def counter_per_min(tracks, area):
     NUM_ANTS = 0
     #print("количество треков в минуту: ", len(tracks))
     for track in tracks:
+        #NUM_ANTS += check_track(track, area)
         NUM_ANTS += check_track(track, area)
             
     return NUM_ANTS
 
 
-def draw_graficks(density, csv_path):
+def draw_graficks(density, csv_path, name):
     #сделай функцию считывания cvc файла
-    real_data = read_cvc(csv_path)
+    real_data, real_data_tracks, density_truth = read_cvc(csv_path, name)
     #real_data.append(0)
     #plt.ion()
     #presicion(real_data, density)
@@ -217,10 +254,12 @@ def draw_graficks(density, csv_path):
     plt.xlabel("Минута") # ось абсцисс
     plt.ylabel("Количество особей") # ось ординат
     plt.grid() # включение отображение сетки
-    plt.plot(range(len(density)), density, linestyle = 'dotted', 'r')
-    plt.plot(range(len(real_data)), real_data, 'b--')
-
-    plt.legend(['Автоматический подсчет', 'Ручной подсчет'], loc = 'best')
+    plt.plot(range(len(density)), density, linestyle = '--', color='r',linewidth = 3, label='Автоматический подсчет')
+    plt.plot(range(len(real_data)), real_data, color='b',linestyle = ':', linewidth = 3,label='Ручной подсчет')
+    plt.plot(range(len(real_data_tracks)), real_data_tracks, color='g',  linewidth = 3, linestyle = '-.', label='Ручной с треками')
+    plt.plot(range(len(density_truth)), density_truth, color='black',  linewidth = 3, linestyle = ':', label='Проверка')
+    
+    plt.legend(loc = 'best')
     plt.show()
     #plt.savefig(path + '/density.png')
     
@@ -237,12 +276,19 @@ def presicion(real_data, pred_data):
     
     
     
-def read_cvc(path):
+def read_cvc(path, name):
     # YOU MUST PUT sheet_name=None TO READ ALL CSV FILES IN YOUR XLSM FILE
-    df = pd.read_excel(path, sheet_name='Лист1')
-    density = df['кол-во мур-в квадрате (пересмотр 20.03.23)'].values.tolist()
-    print(density)
-    return density
+    #df = pd.read_excel(path, sheet_name='кол-во_мур-в_в_квадрате')
+    #density = df['empty_center'].values[:11].tolist()
+    #density_tracks = df['empty_center_tracks'].values[:11].tolist()
+    #density_truth = df['empty_center_truth'].values[:11].tolist()
+    
+    df = pd.read_excel(path, sheet_name=name)
+    lenth = len(df["time / type"].values) - 2
+    density = df["Ручной"].values[:lenth].tolist()
+    density_tracks = df['Ручной с треками'].values[:lenth].tolist()
+    density_truth = df['Проверка'].values[:lenth].tolist()
+    return density, density_tracks, density_truth
     
 def count_all_minutas(coord_yaml, tracks_path, video_path):
     cap = cv2.VideoCapture(video_path)
@@ -287,14 +333,15 @@ def count_all_minutas(coord_yaml, tracks_path, video_path):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('tracks_path', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/18.08.20 Fp2' плос2_tracks.txt", help="Specify yaml track path", type=str)
-    parser.add_argument('coord_yaml', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/plos2.yml", help="Specify yaml coords path", type=str)
-    parser.add_argument('input_video_path', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/18.08.20 Fp2' плос2.mp4", help="Specify input video path", type=str)
-    parser.add_argument('csv_path', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/18.08.20 Fp2' плос2_версия_2023.03.20.xlsx", help="Specify path to gt data", type=str)
+    parser.add_argument('tracks_path', nargs='?', default="/home/ubuntu/ant_detection/problems/another_full_video/empty_center_tracks.txt", help="Specify yaml track path", type=str)
+    parser.add_argument('coord_yaml', nargs='?', default="/home/ubuntu/ant_detection/problems/another_full_video/plos.yml", help="Specify yaml coords path", type=str)
+    parser.add_argument('input_video_path', nargs='?', default="/home/ubuntu/ant_detection/problems/another_full_video/empty_center.mp4", help="Specify input video path", type=str)
+    parser.add_argument('csv_path', nargs='?', default="/home/ubuntu/ant_detection/problems/dynamic_density.xlsx", help="Specify path to gt data", type=str)
     #parser.add_argument('out_video_path', nargs='?', default='/home/ubuntu/ant_detection/dynamic_density/cut6s_tracks.mp4', help="Specify output video path", type=str)
     args = parser.parse_args()
+    name = args.input_video_path[args.input_video_path.rfind('/')+1:args.input_video_path.rfind('.')]
     #path = '/home/ubuntu/ant_detection/dynamic_density/'
-    draw_graficks(count_all_minutas(args.coord_yaml, args.tracks_path, args.input_video_path), args.csv_path)
+    draw_graficks(count_all_minutas(args.coord_yaml, args.tracks_path, args.input_video_path), args.csv_path, name)
     
     #read_cvc("/home/ubuntu/ant_detection/dynamic_density/18.08.20 Fp2' плос2.xlsx")
     

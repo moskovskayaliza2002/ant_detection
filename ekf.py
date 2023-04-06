@@ -397,12 +397,13 @@ class multiEKF(object):
         return np.array(ants)
     
     def draw_tracks_cv2(self, frame, color = None):
+        image = frame
         for ekf in self.EKFS:
             track = np.array(ekf.track).astype(int)
             points = np.array(track[:,[0,1]])
             points = points.reshape((-1, 1, 2))
             
-            image = cv2.polylines(frame, [points], isClosed=False, color=ekf.color, thickness=2)
+            image = cv2.polylines(image, [points], isClosed=False, color=ekf.color, thickness=2)
             
         return image
         

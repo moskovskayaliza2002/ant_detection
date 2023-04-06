@@ -127,12 +127,12 @@ def count_mAP(conf_threshold, nms_threshold, iou_threshold, images_path, iuo_tre
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     file_ = 'cut50s'
-    parser.add_argument('--test_path', nargs='?', default='/home/ubuntu/ant_detection/dataset/Test_data', help="path to folder with images and annot", type=str)
+    parser.add_argument('--test_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/Test_data', help="path to folder with images and annot", type=str)
     parser.add_argument('--iuo_tresh', nargs='?', default=0.5, help="treshold for TP and FP", type=float)
     parser.add_argument('--model_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230216-180517/full_weights.pth', help="path to weights", type=str)
     parser.add_argument('conf_threshold', nargs='?', default=0.7, help="Confident threshold for boxes", type=float)
-    parser.add_argument('nms_threshold', nargs='?', default=0.3, help="Non maximum suppression threshold for boxes", type=float)
-    parser.add_argument('iou_threshold', nargs='?', default=0.3, help="IOU threshold for boxes", type=float)
+    parser.add_argument('nms_threshold', nargs='?', default=0.15, help="Non maximum suppression threshold for boxes", type=float)
+    parser.add_argument('iou_threshold', nargs='?', default=0.1, help="IOU threshold for boxes", type=float)
     parser.add_argument('overlay_w', nargs='?', default=60, help="Num of pixels that x-axis images intersect", type=int)
     parser.add_argument('overlay_h', nargs='?', default=30, help="Num of pixels that y-axis images intersect", type=int)
     parser.add_argument('splits_vertical', nargs='?', default=3, help="Num of pictures in w-axis", type=int)
@@ -155,6 +155,15 @@ if __name__ == '__main__':
     
     pr, rec, inter_pr, mAP = count_mAP(conf_threshold, nms_threshold, iou_threshold, images_path, iuo_tresh, model_path, overlay_w, overlay_h, args.splits_vertical, args.splits_horizontal)
     print(f'AP: {mAP}')
+    # open file in write mode
+    with open(r'/home/ubuntu/ant_detection/article/PR.txt', 'w') as fp:
+        fp.write("----------------------X----------------------------")
+        for item in rec:
+            fp.write("%s\n" % item)
+        fp.write("----------------------Y----------------------------")
+        for item in inter_pr:
+            fp.write("%s\n" % item)
+        print('Done')
 
     plt.xlabel("Recall")
     plt.ylabel("Precision")
