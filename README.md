@@ -27,7 +27,7 @@
 
 | Имя/Дата | Датасет | Точность mAP | Ошибка ключевых точек |
 | --- | --- | --- | --- |
-| [20230216-180517](https://github.com/moskovskayaliza2002/ant_detection/releases/tag/v1.0.0/ full_weights.pth) | [ant-2-keypoints-dataset](https://www.kaggle.com/datasets/elizamoscovskaya/ant-2-keypoints-dataset) | 0.92 | 0.4 радиана |
+| [20230216-180517](https://github.com/moskovskayaliza2002/ant_detection/releases/tag/v1.0.0/full_weights.pth) | [ant-2-keypoints-dataset](https://www.kaggle.com/datasets/elizamoscovskaya/ant-2-keypoints-dataset) + аугментация| 0.92 | 0.4 радиана |
 
 ### Обучение
 Данные для обучения переводятся в формат *DataLoader*. Для этого нужно распарсить полученные данные с разметчика. Для этого нужно запустить файл *parser.py*. Затем файл *universal_intersection.py*, который разрежет изображения на указанное количество частей по вертикали и горизонтали, и разделит оригинальные аннотации для новых изображений.
