@@ -8,6 +8,7 @@ import matplotlib.image as mpimg
 import cv2
 import os
 import shutil
+import time
 import gc
 
 ARROW_LEN = 50
@@ -37,7 +38,7 @@ dt = 0.1
 #коэфф для махалонобиса
 #mh = 12
 #коэфф для временного порога
-mh = 60
+mh = 1.7
 P_limit = np.inf
 
 # Функция обработки фрейма, для сохранения
@@ -147,24 +148,30 @@ if __name__ == '__main__':
     
     #file_ = 'cut6s'
     #file_ = 'cut50s'
-    #file_ = 'empty_center'
-    #file_ = "18.08.20 Fp2' плос2"
+    file_ = 'empty_center'
+    #file_ = "18.08.20 Fp2 плос2"
     #file_ = "video1"
     #file_ = "prombem_2minute"
     #file_ = "video0"
     #file_ = "empty_center"
-    file_ = "FILE0009 1"
+    #file_ = "FILE0009 1"
     '''
     parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
     parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}.mp4', help="Full path to video file", type=str)
     parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/frames_track', help="Full path to directory to save frames", type=str)
     parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
     '''
-    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/sand_bg/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
-    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/sand_bg/{file_}.mp4', help="Full path to video file", type=str)
+    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/another_full_video/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
+    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/another_full_video/{file_}.mp4', help="Full path to video file", type=str)
     parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/ant_detection/delete', help="Full path to directory to save frames", type=str)
-    parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/sand_bg/{file_}_tracks.txt', help="Full path to directory to save trackes in yaml", type=str)
+    parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/another_full_video/{file_}_tracks.txt', help="Full path to directory to save trackes in yaml", type=str)
     parser.add_argument('--visualisation', nargs='?', default=True, help="Make visualization or file with tracks only", type=bool)
+    
+    
+    sec_start = time.time()
+    struct_start = time.localtime(sec_start)
+    start_time = time.strftime('%d.%m.%Y %H:%M', struct_start)
+    
     
     args = parser.parse_args()
     print(f"Loading data from {args.yaml_path}...")
@@ -189,7 +196,8 @@ if __name__ == '__main__':
     ax = None
     print(f"всего {len(ANT_DATA['frames'])}")
     name = args.video_path[args.video_path.rfind('/'):args.video_path.rfind('.')]
-    new_filename = args.video_path[:args.video_path.rfind('/')] + name + '_tracks' + '.mp4'
+    new_filename = args.video_path[:args.video_path.rfind('/')] + name + '_tracks_no_N' + '.mp4'
+    #new_filename = args.video_path[:args.video_path.rfind('/')] + name + '_tracks' + '.mp4'
     
     '''
     if args.visualisation:
@@ -286,3 +294,8 @@ if __name__ == '__main__':
     for st in cov_matrix:
         print(st)
     '''
+    sec_finish = time.time()
+    struct_finish = time.localtime(sec_finish)
+    finish_time = time.strftime('%d.%m.%Y %H:%M', struct_finish)
+    
+    print(f'Started {start_time} Finished {finish_time}')

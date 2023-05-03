@@ -494,7 +494,7 @@ def visualize_from_yml(yml_path, video_path, pred_video_path):
     
 if __name__ == '__main__':       
     parser = argparse.ArgumentParser()
-    parser.add_argument('test_data_path', nargs='?', default="/home/ubuntu/ant_detection/problems/sand_bg/FILE0009 1.mp4", help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
+    parser.add_argument('test_data_path', nargs='?', default="/home/ubuntu/ant_detection/problems/another_full_video/empty_center.mp4", help="Specify the path either to the folder with test images to test everything, or the path to a single image", type=str)
     parser.add_argument('model_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset/rcnn_models/20230216-180517/full_weights.pth', help="Specify weights path", type=str)
     parser.add_argument('draw_targets', nargs='?', default=False, help="True - will draw targets, False - will not", type=bool)
     parser.add_argument('conf_threshold', nargs='?', default=0.7, help="Confident threshold for boxes", type=float)

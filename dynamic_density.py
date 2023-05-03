@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import xlrd
 from shapely.geometry import Point, Polygon
+import time
 
 def read_tracks_from_txt(path):
     tracks = []
@@ -338,10 +339,20 @@ if __name__ == '__main__':
     parser.add_argument('input_video_path', nargs='?', default="/home/ubuntu/ant_detection/problems/another_full_video/empty_center.mp4", help="Specify input video path", type=str)
     parser.add_argument('csv_path', nargs='?', default="/home/ubuntu/ant_detection/problems/dynamic_density.xlsx", help="Specify path to gt data", type=str)
     #parser.add_argument('out_video_path', nargs='?', default='/home/ubuntu/ant_detection/dynamic_density/cut6s_tracks.mp4', help="Specify output video path", type=str)
+    
+    sec_start = time.time()
+    struct_start = time.localtime(sec_start)
+    start_time = time.strftime('%d.%m.%Y %H:%M', struct_start)
+    
     args = parser.parse_args()
     name = args.input_video_path[args.input_video_path.rfind('/')+1:args.input_video_path.rfind('.')]
     #path = '/home/ubuntu/ant_detection/dynamic_density/'
     draw_graficks(count_all_minutas(args.coord_yaml, args.tracks_path, args.input_video_path), args.csv_path, name)
+    
+    sec_finish = time.time()
+    struct_finish = time.localtime(sec_finish)
+    finish_time = time.strftime('%d.%m.%Y %H:%M', struct_finish)
+    print(f'Started {start_time} Finished {finish_time}')
     
     #read_cvc("/home/ubuntu/ant_detection/dynamic_density/18.08.20 Fp2' плос2.xlsx")
     

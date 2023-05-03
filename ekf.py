@@ -86,6 +86,8 @@ class AntEKF(ExtendedKalmanFilter):
         self.x[2] = self.x[2] + self.x[4] * self.dt
         self.x[3] = self.x[3] * 0.9 ** self.no_update_steps
         self.x[4] = self.x[4] * 0.9 ** self.no_update_steps
+        #self.x[3] = self.x[3]
+        #self.x[4] = self.x[4]
         
         self.F = np.array([[1, 0, -np.sin(self.x[2]) * self.x[3] * self.dt, np.cos(self.x[2]) * self.dt, 0],
                       [0, 1, np.cos(self.x[2]) * self.x[3] * self.dt, np.sin(self.x[2]) * self.dt, 0],
@@ -193,14 +195,15 @@ def distance_per_t(new_v, old_v):
         x0 = o_value[0]
         y0 = o_value[1]
         a0 = o_value[2]
-        #v0 = o_value[3]
-        #w0 = o_value[4]
-        v0 = 1
-        w0 = 1
+        v0 = max(25, o_value[3])
+        w0 = max(2, o_value[4])
+        #v0 = 1
+        #w0 = 1
         for j, n_value in enumerate(new_v):
             delta_r = np.sqrt((n_value[1] - x0) ** 2 + (n_value[2] - y0) ** 2)
             delta_a = substract_angles(a0, n_value[3])
-            t = delta_r / v0 + delta_a / w0
+            #t = delta_r / v0
+            t = max(delta_r / v0, delta_a / w0)
             matrix[j,i] = t
     return matrix
     
