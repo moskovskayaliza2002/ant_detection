@@ -246,23 +246,32 @@ def counter_per_min(tracks, area):
 
 
 def draw_graficks(density, csv_path, name):
-    #сделай функцию считывания cvc файла
-    real_data, real_data_tracks, density_truth = read_cvc(csv_path, name)
-    #real_data.append(0)
-    #plt.ion()
-    #presicion(real_data, density)
-    plt.title("Динамическая плотность") # заголовок
-    plt.xlabel("Минута") # ось абсцисс
-    plt.ylabel("Количество особей") # ось ординат
-    plt.grid() # включение отображение сетки
-    plt.plot(range(len(density)), density, linestyle = '--', color='r',linewidth = 3, label='Автоматический подсчет')
-    plt.plot(range(len(real_data)), real_data, color='b',linestyle = ':', linewidth = 3,label='Ручной подсчет')
-    plt.plot(range(len(real_data_tracks)), real_data_tracks, color='g',  linewidth = 3, linestyle = '-.', label='Ручной с треками')
-    plt.plot(range(len(density_truth)), density_truth, color='black',  linewidth = 3, linestyle = ':', label='Проверка')
-    
-    plt.legend(loc = 'best')
-    plt.show()
-    #plt.savefig(path + '/density.png')
+    if csv_path == "":
+        plt.title("Динамическая плотность") # заголовок
+        plt.xlabel("Номер минуты") # ось абсцисс
+        plt.ylabel("Количество особей") # ось ординат
+        plt.grid() # включение отображение сетки
+        plt.plot(range(len(density)), density, linestyle = '--', color='r',linewidth = 3, label='Автоматический подсчет')
+        plt.legend(loc = 'best')
+        plt.show()
+    else:
+        #сделай функцию считывания cvc файла
+        real_data, real_data_tracks, density_truth = read_cvc(csv_path, name)
+        #real_data.append(0)
+        #plt.ion()
+        #presicion(real_data, density)
+        plt.title("Динамическая плотность") # заголовок
+        plt.xlabel("Номер минуты") # ось абсцисс
+        plt.ylabel("Количество особей") # ось ординат
+        plt.grid() # включение отображение сетки
+        plt.plot(range(len(density)), density, linestyle = '--', color='r',linewidth = 3, label='Автоматический подсчет')
+        plt.plot(range(len(real_data)), real_data, color='b',linestyle = ':', linewidth = 3,label='Ручной подсчет')
+        plt.plot(range(len(real_data_tracks)), real_data_tracks, color='g',  linewidth = 3, linestyle = '-.', label='Ручной с треками')
+        plt.plot(range(len(density_truth)), density_truth, color='black',  linewidth = 3, linestyle = ':', label='Проверка')
+        
+        plt.legend(loc = 'best')
+        plt.show()
+        #plt.savefig(path + '/density.png')
     
 def presicion(real_data, pred_data):
     gt = np.array(real_data)
@@ -334,11 +343,11 @@ def count_all_minutas(coord_yaml, tracks_path, video_path):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('tracks_path', nargs='?', default="/home/ubuntu/ant_detection/problems/another_full_video/empty_center_tracks.txt", help="Specify yaml track path", type=str)
-    parser.add_argument('coord_yaml', nargs='?', default="/home/ubuntu/ant_detection/problems/another_full_video/plos.yml", help="Specify yaml coords path", type=str)
-    parser.add_argument('input_video_path', nargs='?', default="/home/ubuntu/ant_detection/problems/another_full_video/empty_center.mp4", help="Specify input video path", type=str)
-    parser.add_argument('csv_path', nargs='?', default="/home/ubuntu/ant_detection/problems/dynamic_density.xlsx", help="Specify path to gt data", type=str)
-    #parser.add_argument('out_video_path', nargs='?', default='/home/ubuntu/ant_detection/dynamic_density/cut6s_tracks.mp4', help="Specify output video path", type=str)
+    parser.add_argument('--tracks_path', nargs='?', default="/home/ubuntu/ant_detection/problems/another_full_video/empty_center_tracks.txt", help="Specify yaml track path", type=str)
+    parser.add_argument('--coord_yaml', nargs='?', default="/home/ubuntu/ant_detection/problems/another_full_video/plos.yml", help="Specify yaml coords path", type=str)
+    parser.add_argument('--input_video_path', nargs='?', default="/home/ubuntu/ant_detection/problems/another_full_video/empty_center.mp4", help="Specify input video path", type=str)
+    #parser.add_argument('csv_path', nargs='?', default="/home/ubuntu/ant_detection/problems/dynamic_density.xlsx", help="Specify path to gt data", type=str)
+    parser.add_argument('--csv_path', nargs='?', default="", help="Specify path to gt data", type=str)
     
     sec_start = time.time()
     struct_start = time.localtime(sec_start)

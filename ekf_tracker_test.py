@@ -163,26 +163,23 @@ if __name__ == '__main__':
     '''
     parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/another_full_video/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
     parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/another_full_video/{file_}.mp4', help="Full path to video file", type=str)
-    parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/ant_detection/delete', help="Full path to directory to save frames", type=str)
-    parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/another_full_video/{file_}_tracks.txt', help="Full path to directory to save trackes in yaml", type=str)
+    #parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/another_full_video/{file_}_tracks.txt', help="Full path to directory to save trackes in yaml", type=str)
     parser.add_argument('--visualisation', nargs='?', default=True, help="Make visualization or file with tracks only", type=bool)
-    
+    args = parser.parse_args()
+    yaml_path = args.yaml_path
     
     sec_start = time.time()
     struct_start = time.localtime(sec_start)
     start_time = time.strftime('%d.%m.%Y %H:%M', struct_start)
     
+    name = yaml_path[yaml_path.rfind('/'):yaml_path.rfind('.')]
+    tracks_save_path = yaml_path[:yaml_path.rfind('/')] + name + '_tracks' + '.txt'
     
-    args = parser.parse_args()
-    print(f"Loading data from {args.yaml_path}...")
-    ANT_DATA = read_yaml(args.yaml_path)    
+    
+    print(f"Loading data from {yaml_path}...")
+    ANT_DATA = read_yaml(yaml_path)    
     #print(d.keys() for d in ANT_DATA['frames'])
     dt = 1/ANT_DATA['FPS']
-    pic_save_path = args.pic_save_path
-    
-    if os.path.exists(pic_save_path):
-        shutil.rmtree(pic_save_path)
-    os.mkdir(pic_save_path)
 
     print(f"Loading video {args.video_path}...")
     cap = cv2.VideoCapture(args.video_path)   
@@ -245,7 +242,7 @@ if __name__ == '__main__':
     del ANT_DATA
     gc.collect()
     print("Запись треков")
-    MEKF.write_tracks(args.tracks_save_path)
+    MEKF.write_tracks(tracks_save_path)
         
     all_errors = []
     for ekf in MEKF.EKFS:

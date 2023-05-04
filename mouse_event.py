@@ -56,14 +56,17 @@ def show_polygon(im, coords, yml_path, v_path):
 if __name__ == '__main__':
     print("INFO: двойной клик левой кнопкой мыши поставит точку, двойной клик колесика отменит последнюю нарисованную точку")
     parser = argparse.ArgumentParser()
-    parser.add_argument('--video_path', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/18.08.20 Fp2 плос2.mp4", help="path to video for dynamic density analysis", type=str)
-    parser.add_argument('--yaml_path', nargs='?', default='/home/ubuntu/ant_detection/problems/sand_bg/plos.yml', help="outputfile path with coordinates of rectangle points", type=str)
+    parser.add_argument('--video_path', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/18.08.20_Fp2_плос2.mp4", help="path to video for dynamic density analysis", type=str)
+    #parser.add_argument('--yaml_path', nargs='?', default='/home/ubuntu/ant_detection/problems/sand_bg/plos.yml', help="outputfile path with coordinates of rectangle points", type=str)
     ##path = '/home/ubuntu/ant_detection/polygon_data/Test_data/images/image446.png'
     args = parser.parse_args()
     
-    cap = cv2.VideoCapture(args.video_path)
+    video_path = args.video_path
+    yaml_path = video_path[:video_path.rfind('/')] + "plos.yml"
+    
+    cap = cv2.VideoCapture(video_path)
     while not cap.isOpened():
-        cap = cv2.VideoCapture(args.video_path)
+        cap = cv2.VideoCapture(video_path)
         cv2.waitKey(1000)
         print("Openning the file...")
         
@@ -85,6 +88,6 @@ if __name__ == '__main__':
             #cv2.imshow('src',img)
         cv2.destroyAllWindows()
         if len(coords) == 4:
-            show_polygon(frame, coords, args.yaml_path, args.video_path)
+            show_polygon(frame, coords, yaml_path, video_path)
         print(coords)
     
