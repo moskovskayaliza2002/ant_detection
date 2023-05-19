@@ -145,7 +145,8 @@ def find_points(im, yaml_path):
     global coords
     coords = read_coords_yaml(yaml_path)
     matrix = find_matrix(coords)
-    path = yaml_path[:yaml_path.rfind('/')] + '/matrix.yml'
+    name = yaml_path[yaml_path.rfind('/'):yaml_path.rfind('.')]
+    path = yaml_path[:yaml_path.rfind('/')] + name + '_matrix.yml'
     save_matrix(path, matrix)
     print("INFO: Матрица сохранена")
     global img  
@@ -171,21 +172,29 @@ def find_points(im, yaml_path):
 def change_detections_to_real(detection_yaml, matrix_yaml):
     #Менятся порядок записи в файл, посмотри, как это влияет
     ANT_DATA = read_yaml(detection_yaml)
-    print("Данные считаны")
+    print("INFO: Данные считаны")
     matrix = read_matrix(matrix_yaml)
-    print("Матрица считана")
+    print("INFO: Матрица считана")
     matrix = np.array(matrix, dtype=np.float32)
     for frame in ANT_DATA['frames']:
-        orig_bb = np.resize(np.float32(np.array(frame['bboxes'])), (len(frame['bboxes']), 2, 2))
-        print(frame['bboxes'])
-        orig_kps = np.resize(np.float32(np.array(frame['keypoints'])), (len(frame['bboxes']), 2, 2))
-        print(cv2.perspectiveTransform(orig_bb, matrix).shape)
-        frame['bboxes'] = np.resize(cv2.perspectiveTransform(orig_bb, matrix), (len(frame['bboxes']), 4)).tolist()
-        frame['keypoints'] = cv2.perspectiveTransform(orig_kps, matrix).tolist()
+        print(frame['frame'])
+        if len(frame['bboxes']):
+            orig_bb = np.resize(np.float32(np.array(frame['bboxes'])), (len(frame['bboxes']), 2, 2))
+            #print("До преобразования: ", frame['bboxes'])
+            orig_kps = np.resize(np.float32(np.array(frame['keypoints'])), (len(frame['bboxes']), 2, 2))
+            #print(cv2.perspectiveTransform(orig_bb, matrix).shape)
+            frame['bboxes'] = np.resize(cv2.perspectiveTransform(orig_bb, matrix), (len(frame['bboxes']), 4)).tolist()
+            #print("После преобразования: ", frame['bboxes'])
+            #УДАЛИ ЭТО ТЕСТ 
+            #inv_matrix = np.linalg.inv(matrix)
+            #new_bb = np.resize(np.float32(np.array(frame['bboxes'])), (len(frame['bboxes']), 2, 2))
+            #print("Обратное преобразование: ", np.resize(cv2.perspectiveTransform(new_bb, inv_matrix), (len(frame['bboxes']), 4)).astype(int).tolist())
+            frame['keypoints'] = cv2.perspectiveTransform(orig_kps, matrix).tolist()
         
-    print("Преобразования закончены")
+    print("INFO: Преобразования закончены")
     name = detection_yaml[detection_yaml.rfind('/'):detection_yaml.rfind('.')]
     new_detection_yaml = detection_yaml[:detection_yaml.rfind('/')] + name + '_real_coords' + '.yml'
+    print(new_detection_yaml)
     with open(new_detection_yaml, 'w') as f:
         #data = yaml.dump({'name': filename}, f)
         yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
@@ -193,15 +202,26 @@ def change_detections_to_real(detection_yaml, matrix_yaml):
         print(type(ANT_DATA['frames']))
         data = OrderedDict({"frames":ANT_DATA['frames']})
         yaml.dump(data, f)
+    print(f"INFO: Данные сохранены в файл: {new_detection_yaml}")
+        
     
 if __name__ == '__main__':
-    print("INFO: двойной клик левой кнопкой мыши поставит точку, двойной клик колесика отменит последнюю нарисованную точку")
     parser = argparse.ArgumentParser()
     parser.add_argument('--video_path', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/18.08.20_Fp2_плос2.mp4", help="path to video for dynamic density analysis", type=str)
     parser.add_argument('--yaml_path', nargs='?', default='/home/ubuntu/ant_detection/problems/full_video/real_coords.yml', help="outputfile path with pixels and real coords", type=str)
-    parser.add_argument('--num_points', nargs='?', default=4, help="number of points", type=int)
+    parser.add_argument('--num_points', nargs='?', default=20, help="number of points", type=int)
+    parser.add_argument('--action', nargs='?', default='T', help="T - tranform detection to real coords, GM - get matrix", type=str)
     args = parser.parse_args()
     
-    #img = correlate_points(args.video_path, args.num_points, args.yaml_path)
-    #find_points(img, args.yaml_path)
-    change_detections_to_real("/home/ubuntu/ant_detection/problems/Track_gap/video0.yml", "/home/ubuntu/ant_detection/problems/Track_gap/matrix.yml")
+    if args.action == 'GM':
+        print("INFO: двойной клик левой кнопкой мыши поставит точку, двойной клик колесика отменит последнюю нарисованную точку")
+        img = correlate_points(args.video_path, args.num_points, args.yaml_path)
+        find_points(img, args.yaml_path)
+    
+    elif args.action == 'T':
+        name = args.video_path[args.video_path.rfind('/'):args.video_path.rfind('.')]
+        pixel_path = args.video_path[:args.video_path.rfind('/')] + name + '.yml'
+        matrix_path = args.video_path[:args.video_path.rfind('/')] + name + '_matrix.yml'
+        change_detections_to_real(pixel_path, matrix_path)
+    else:
+        print("Нет такого параметра запуска")

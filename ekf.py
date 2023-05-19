@@ -69,7 +69,7 @@ class AntEKF(ExtendedKalmanFilter):
         self.color = color
         self.error = []
 
-        self.track = [np.copy(self.x).astype(int)]
+        self.track = [np.copy(self.x).astype(float)]
         self.track_state = TrackState.Unconfirmed
         self.hits = 1
         self.no_update_steps = 0
@@ -99,7 +99,7 @@ class AntEKF(ExtendedKalmanFilter):
                         
         self.no_update_steps+=1
         # TODO: add x to history
-        self.track.append(np.copy(self.x).astype(int))
+        self.track.append(np.copy(self.x).astype(float))
         
     '''
     new_value - [x, y, a]
@@ -140,7 +140,7 @@ class AntEKF(ExtendedKalmanFilter):
         if self.track_state == TrackState.Unconfirmed and self.hits >= TrackState.Conf_steps:
             self.track_state = TrackState.Confirmed
         # TODO: rewrite last history element
-        self.track[-1] = np.copy(self.x).astype(int)
+        self.track[-1] = np.copy(self.x).astype(float)
         
     def is_confirmed(self):
         """Returns True if this track is confirmed."""
@@ -195,7 +195,7 @@ def distance_per_t(new_v, old_v):
         x0 = o_value[0]
         y0 = o_value[1]
         a0 = o_value[2]
-        v0 = max(25, o_value[3])
+        v0 = max(0.01, o_value[3])
         w0 = max(2, o_value[4])
         #v0 = 1
         #w0 = 1
@@ -218,7 +218,7 @@ class multiEKF(object):
     mahalanobis_thres - mahalanobis disnace at which count ants the same
     P_limit - limitation for covariance, if it is higher - remove that filter
     '''
-    def __init__(self, start_values, R_diag, Q, dt, mahalanobis_thres, P_limit, xlim, ylim, frame_ind):
+    def __init__(self, start_values, R_diag, Q, dt, mahalanobis_thres, P_limit, xlim, ylim, frame_ind, inv_matrix):
         
         self.mahalanobis_thres = mahalanobis_thres
         
@@ -234,6 +234,7 @@ class multiEKF(object):
         self.deleted_ants_error = []
         self.deleted_conf_ants = np.array([]).astype(int)
         self.color = iter(cm.rainbow(np.linspace(0, 1, MAX_AM_ANTS)))
+        self.inv_matrix = inv_matrix
         for i in range(start_values.shape[0]):
             c = next(self.color)
             ekf = AntEKF(start_values[i][1:], start_values[i][0], self.R_diag, self.Q, c, self.dt, frame_ind)                                    
@@ -359,28 +360,40 @@ class multiEKF(object):
             old_colors = []         
             
             # filter to not go out of frame
+            '''
             obj_out_of_frames = []
+            zero = cv2.perspectiveTransform(np.float32(np.array([[[0,0]]])), self.inv_matrix)[0][0]
+            lims = cv2.perspectiveTransform(np.float32(np.array([[[self.xlim,self.ylim]]])), self.inv_matrix)[0][0]
+            max_x = lims[0]
+            max_y = lims[1]
             for i, ekf in enumerate(self.EKFS):
-                if ekf.x[0] >= self.xlim:
-                    ekf.x = ekf.track[-2].tolist()
-                    ekf.x[0] = self.xlim
-                    ekf.track[-1] = np.array([self.xlim, ekf.track[-2][1], ekf.track[-2][2], ekf.track[-2][3], ekf.track[-2][4]]).astype(int)
-                    obj_out_of_frames.append(i)
-                if ekf.x[1] >= self.ylim:
-                    ekf.x = ekf.track[-2].tolist()
-                    ekf.x[1] = self.ylim
-                    ekf.track[-1] = np.array([ekf.track[-2][0], self.ylim, ekf.track[-2][2], ekf.track[-2][3], ekf.track[-2][4]]).astype(int)
-                    obj_out_of_frames.append(i)
-                if ekf.x[0] <= 0:
-                    ekf.x = ekf.track[-2].tolist()
-                    ekf.x[0] = 0
-                    ekf.track[-1] = np.array([0, ekf.track[-2][1], ekf.track[-2][2], ekf.track[-2][3], ekf.track[-2][4]]).astype(int)
-                    obj_out_of_frames.append(i)
-                if ekf.x[1] <= 0:
-                    ekf.x = ekf.track[-2].tolist()
-                    ekf.x[1] = 0
-                    ekf.track[-1] = np.array([ekf.track[-2][0], 0, ekf.track[-2][2], ekf.track[-2][3], ekf.track[-2][4]]).astype(int)
-                    obj_out_of_frames.append(i)
+                if len(ekf.track) >= 2:
+                    last_track = ekf.track[-2]
+                    if ekf.x[0] >= max_x:
+                        #ekf.x = ekf.track[-2].tolist()
+                        ekf.x = last_track.tolist()
+                        ekf.x[0] = max_x
+                        ekf.track[-1] = np.array([max_x, last_track[1], last_track[2], last_track[3], last_track[4]]).astype(float)
+                        obj_out_of_frames.append(i)
+                    if ekf.x[1] >= max_y:
+                        #ekf.x = ekf.track[-2].tolist()
+                        ekf.x = last_track.tolist()
+                        ekf.x[1] = max_y
+                        ekf.track[-1] = np.array([last_track[0], max_y, last_track[2], last_track[3], last_track[4]]).astype(float)
+                        obj_out_of_frames.append(i)
+                    if ekf.x[0] <= zero[0]:
+                        #ekf.x = ekf.track[-2].tolist()
+                        ekf.x = last_track.tolist()
+                        ekf.x[0] = zero[0]
+                        ekf.track[-1] = np.array([zero[0], last_track[1], last_track[2], last_track[3], last_track[4]]).astype(float)
+                        obj_out_of_frames.append(i)
+                    if ekf.x[1] <= zero[1]:
+                        #ekf.x = ekf.track[-2].tolist()
+                        ekf.x = last_track.tolist()
+                        ekf.x[1] = zero[1]
+                        ekf.track[-1] = np.array([last_track[0], zero[1], last_track[2], last_track[3], last_track[4]]).astype(float)
+                        obj_out_of_frames.append(i)
+            '''
             '''
             for index in sorted(obj_out_of_frames, reverse=True):
                 for err in self.EKFS[index].error:
@@ -402,11 +415,12 @@ class multiEKF(object):
     def draw_tracks_cv2(self, frame, color = None):
         image = frame
         for ekf in self.EKFS:
-            track = np.array(ekf.track).astype(int)
-            points = np.array(track[:,[0,1]])
-            points = points.reshape((-1, 1, 2))
-            
-            image = cv2.polylines(image, [points], isClosed=False, color=ekf.color, thickness=2)
+            track = np.array(ekf.track).astype(float)
+            points = np.array(track[:,[0,1]], dtype='float32')
+            points = np.array([points])
+            tranf_to_pix = cv2.perspectiveTransform(points.reshape(-1, 1, 2), self.inv_matrix)
+            tranf_to_pix = np.array(tranf_to_pix.reshape((-1, 1, 2)), dtype='int32')
+            image = cv2.polylines(image, [tranf_to_pix], isClosed=False, color=ekf.color, thickness=2)
             
         return image
         
@@ -415,7 +429,7 @@ class multiEKF(object):
         #color = iter(cm.rainbow(np.linspace(0, 1, len(self.EKFS))))
         for ekf in self.EKFS:
             # plot track
-            track = np.array(ekf.track).astype(int)
+            track = np.array(ekf.track).astype(float)
             c = ekf.color 
             x = ekf.x[0]
             y = ekf.x[1]

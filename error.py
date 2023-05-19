@@ -7,8 +7,9 @@ import numpy as np
 import argparse
 import glob
 import os
+from from_pixels_to_real_coords import read_matrix
 import matplotlib.pyplot as plt
-
+import cv2
 
 def plot_gist(data):
     fig, ax = plt.subplots()
@@ -83,10 +84,20 @@ def substract_angles(target, source):
     return np.arctan2(np.sin(target-source), np.cos(target-source))
 
 
-def loss(orig_bb, pred_bb, orig_kp, pred_kp, alpha_error, point_error_x, point_error_y):
+def loss(orig_bb, pred_bb, orig_kp, pred_kp, alpha_error, point_error_x, point_error_y, matrix_yaml=None):
     #Возвращает массив ошибок для всех значений одного изображения
     #alpha_error = []
     #point_error = []
+    if matrix_yaml:
+        matrix = read_matrix(matrix_yaml)
+        matrix = np.array(matrix, dtype=np.float32)
+        #orig_bb = np.array(orig_bb, dtype='float32')
+        #orig_bb = np.array([orig_bb])
+        
+        orig_bb = np.resize(cv2.perspectiveTransform(np.resize(np.float32(np.array(orig_bb)), (len(orig_bb), 2, 2)), matrix), (len(orig_bb), 4)).tolist()
+        pred_bb = np.resize(cv2.perspectiveTransform(np.resize(np.float32(np.array(pred_bb)), (len(pred_bb), 2, 2)), matrix), (len(pred_bb), 4)).tolist()
+        orig_kp = np.resize(cv2.perspectiveTransform(np.resize(np.float32(np.array(orig_kp)), (len(orig_kp), 2, 2)), matrix), (len(orig_kp), 2,2)).tolist()
+        pred_kp = np.resize(cv2.perspectiveTransform(np.resize(np.float32(np.array(pred_kp)), (len(pred_kp), 2, 2)), matrix), (len(pred_kp), 2,2)).tolist()
     for i in range(len(orig_bb)):
         if pred_bb[i] != [0, 0, 0, 0]:
             #Высчитывае центров объектов из боксов
@@ -96,6 +107,7 @@ def loss(orig_bb, pred_bb, orig_kp, pred_kp, alpha_error, point_error_x, point_e
             point_error_x.append(center_point_or[0] - center_point_pr[0])
             point_error_y.append(center_point_or[1] - center_point_pr[1])
             #Высчитывание углов
+            #print(orig_kp)
             alpha_orig = np.arctan2(orig_kp[i][1][1] - orig_kp[i][0][1], orig_kp[i][1][0] - orig_kp[i][0][0])
             alpha_pr = np.arctan2(pred_kp[i][1][1] - pred_kp[i][0][1], pred_kp[i][1][0] - pred_kp[i][0][0])
             alpha_error.append(substract_angles(alpha_orig, alpha_pr))
@@ -136,7 +148,7 @@ def batch_test(root, model, device, conf_threshold, iou_threshold, nms_threshold
             #Сопоставленные с оригиналом предсказания
             new_pred_bboxes, new_pred_keypoints = get_right_from_predict(orig_bboxes, pred_b, orig_keypoints, pred_kp, treshold)
             #Ошибки по изображению
-            total_x_error, total_y_error, total_angle_error = loss(orig_bboxes, new_pred_bboxes, orig_keypoints, new_pred_keypoints, total_angle_error, total_x_error, total_y_error)
+            total_x_error, total_y_error, total_angle_error = loss(orig_bboxes, new_pred_bboxes, orig_keypoints, new_pred_keypoints, total_angle_error, total_x_error, total_y_error, '/home/ubuntu/ant_detection/problems/full_video/18.08.20_Fp2_плос2_matrix.yml')
             #total_location_error.append(location_error)
             #total_angle_error.append(angle_error)
             counter += 1

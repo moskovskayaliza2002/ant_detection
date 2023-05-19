@@ -10,13 +10,15 @@ import os
 import shutil
 import time
 import gc
+from from_pixels_to_real_coords import read_matrix
 
 ARROW_LEN = 50
 D_ANT_COLOR = 'w'
 D_ANT_SYM = 'o'
 ANT_SCORE_MIN = 0.9
 MEKF = None
-R_diag = np.array([1.22, 1.75, 0.39])
+#R_diag = np.array([1.22, 1.75, 0.39])
+R_diag = np.array([0.0028, 0.0014, 0.6257]) #angle = 0.6257
 l = 0.00001
 
 Q = np.array([[7, 0, 0, 0, 0], 
@@ -24,6 +26,7 @@ Q = np.array([[7, 0, 0, 0, 0],
               [0, 0, 0.1, 0, 0],
               [0, 0, 0, 7, 0],
               [0, 0, 0, 0, 5]])
+
 '''
 Q = np.array([[2.63795021e+00, 4.31565031e-02, 4.34318028e-03, -2.20547258e+00, 2.13165056e-01],
               [4.31565031e-02, 2.17205029e+00, -2.80823458e-03, -8.82016377e+00, -7.06690445e-02],
@@ -42,12 +45,12 @@ mh = 1.7
 P_limit = np.inf
 
 # Функция обработки фрейма, для сохранения
-def proceed_frame_cv2(frame, frame_v, W, H, dt):
+def proceed_frame_cv2(frame, frame_v, W, H, dt, inv_matrix):
     global MEKF
     ants = get_ants(frame, dt)
     image = plot_ants_cv2(frame_v, ants)
     if MEKF is None:
-        MEKF = multiEKF(ants, R_diag,  Q, dt, mh, P_limit, W, H, int(frame['frame']))
+        MEKF = multiEKF(ants, R_diag,  Q, dt, mh, P_limit, W, H, int(frame['frame']), inv_matrix)
     else:
         MEKF.proceed(ants, dt, int(frame['frame']))
     image = MEKF.draw_tracks_cv2(image)
@@ -148,8 +151,8 @@ if __name__ == '__main__':
     
     #file_ = 'cut6s'
     #file_ = 'cut50s'
-    file_ = 'empty_center'
-    #file_ = "18.08.20 Fp2 плос2"
+    #file_ = 'empty_center'
+    file_ = "18.08.20_Fp2_плос2"
     #file_ = "video1"
     #file_ = "prombem_2minute"
     #file_ = "video0"
@@ -161,19 +164,25 @@ if __name__ == '__main__':
     parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/frames_track', help="Full path to directory to save frames", type=str)
     parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
     '''
-    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/another_full_video/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
-    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/another_full_video/{file_}.mp4', help="Full path to video file", type=str)
+    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/full_video/{file_}_real_coords.yml', help="Full path to yaml-file with ant data", type=str)
+    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/full_video/{file_}.mp4', help="Full path to video file", type=str)
     #parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/another_full_video/{file_}_tracks.txt', help="Full path to directory to save trackes in yaml", type=str)
     parser.add_argument('--visualisation', nargs='?', default=True, help="Make visualization or file with tracks only", type=bool)
     args = parser.parse_args()
     yaml_path = args.yaml_path
+    video_path = args.video_path
     
     sec_start = time.time()
     struct_start = time.localtime(sec_start)
     start_time = time.strftime('%d.%m.%Y %H:%M', struct_start)
     
-    name = yaml_path[yaml_path.rfind('/'):yaml_path.rfind('.')]
-    tracks_save_path = yaml_path[:yaml_path.rfind('/')] + name + '_tracks' + '.txt'
+    name = video_path[video_path.rfind('/'):video_path.rfind('.')]
+    tracks_save_path = video_path[:video_path.rfind('/')] + name + '_tracks' + '.txt'
+    path_to_matrix = video_path[:video_path.rfind('/')] + name + "_matrix.yml"
+    
+    matrix = read_matrix(path_to_matrix)
+    matrix = np.array(matrix, dtype=np.float32)
+    inv_matrix = np.linalg.inv(matrix)
     
     
     print(f"Loading data from {yaml_path}...")
@@ -193,7 +202,7 @@ if __name__ == '__main__':
     ax = None
     print(f"всего {len(ANT_DATA['frames'])}")
     name = args.video_path[args.video_path.rfind('/'):args.video_path.rfind('.')]
-    new_filename = args.video_path[:args.video_path.rfind('/')] + name + '_tracks_no_N' + '.mp4'
+    new_filename = args.video_path[:args.video_path.rfind('/')] + name + '_real_tracks' + '.mp4'
     #new_filename = args.video_path[:args.video_path.rfind('/')] + name + '_tracks' + '.mp4'
     
     '''
@@ -225,7 +234,7 @@ if __name__ == '__main__':
         for frame in ANT_DATA['frames']:
             print('Frame:', count, '/', maxim_frames)
             ret, frame_v = cap.read()
-            pred_im = proceed_frame_cv2(frame, frame_v, w, h, dt)
+            pred_im = proceed_frame_cv2(frame, frame_v, w, h, dt, inv_matrix)
             #cv2.imshow('image', frame_v)
             #cv2.waitKey(0)
             out.write(pred_im)
@@ -243,7 +252,18 @@ if __name__ == '__main__':
     gc.collect()
     print("Запись треков")
     MEKF.write_tracks(tracks_save_path)
+       
+    mean_speed = []
+    for ekf in MEKF.EKFS:
+        speed = 0
+        lenth = len(ekf.track)
+        for tr in ekf.track:
+           speed += tr[3]
+        mean_speed.append(speed/lenth)
         
+    print(f"Средняя скорость: {sum(mean_speed)/len(mean_speed)} м/c")
+            
+    
     all_errors = []
     for ekf in MEKF.EKFS:
         for err in ekf.error:
