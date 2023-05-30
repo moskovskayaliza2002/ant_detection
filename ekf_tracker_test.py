@@ -11,6 +11,7 @@ import shutil
 import time
 import gc
 from from_pixels_to_real_coords import read_matrix
+import math
 
 ARROW_LEN = 50
 D_ANT_COLOR = 'w'
@@ -18,14 +19,14 @@ D_ANT_SYM = 'o'
 ANT_SCORE_MIN = 0.9
 MEKF = None
 #R_diag = np.array([1.22, 1.75, 0.39])
-R_diag = np.array([0.0028, 0.0014, 0.6257]) #angle = 0.6257
+R_diag = np.array([0.0028, 0.0014, 0.39]) #angle = 0.6257
 l = 0.00001
 
-Q = np.array([[7, 0, 0, 0, 0], 
-              [0, 7, 0, 0, 0],
+Q = np.array([[0.002, 0, 0, 0, 0], 
+              [0, 0.002, 0, 0, 0],
               [0, 0, 0.1, 0, 0],
-              [0, 0, 0, 7, 0],
-              [0, 0, 0, 0, 5]])
+              [0, 0, 0, 0.0001, 0],
+              [0, 0, 0, 0, 0.0001]])
 
 '''
 Q = np.array([[2.63795021e+00, 4.31565031e-02, 4.34318028e-03, -2.20547258e+00, 2.13165056e-01],
@@ -41,7 +42,7 @@ dt = 0.1
 #коэфф для махалонобиса
 #mh = 12
 #коэфф для временного порога
-mh = 1.7
+mh = 1.85
 P_limit = np.inf
 
 # Функция обработки фрейма, для сохранения
@@ -146,26 +147,69 @@ def quartile_filter(arr):
     return withot_outliers.T
         
     
+def plot_gist(d_mean_ants, d_mean_steps, d_ns_mean_ants, d_ns_mean_steps, path):
+    lenth = max([len(d_mean_ants), len(d_mean_steps), len(d_ns_mean_ants), len(d_ns_mean_steps)])
+    none_array = [None] * lenth
+    #дополни массивы none тогда они будут одной длины, или попробуй список массивов
+    data = [d_mean_ants, d_mean_steps, d_ns_mean_ants, d_ns_mean_steps]
+    fig, ax = plt.subplots()
+    ax.set_title('Распределение скоростей')
+    parts = ax.violinplot(
+        data, showmeans=False, showmedians=False,
+        showextrema=False)
+    
+    for pc in parts['bodies']:
+        pc.set_facecolor('#D43F3A')
+        pc.set_edgecolor('black')
+        pc.set_alpha(1)
+    
+    medians = np.percentile(data, [50], axis=1)
+
+    ax.scatter([1, 2, 3, 4], medians, marker='o', color='white', s=30, zorder=3)
+    
+    labels = ['Ост./особи', 'Ост./шаги', 'Б.Ост/особи', 'Б.Ост/шаги']
+    
+    ax.xaxis.set_tick_params(direction='out')
+    ax.xaxis.set_ticks_position('bottom')
+    ax.set_xticks([1, 2, 3, 4])
+    ax.set_xticklabels(labels)
+    ax.set_xlim(0.25, len(labels) + 0.75)
+    ax.set_xlabel('Sample name')
+    plt.savefig(path)
+
+def lenth_of_traj(traj, dt):
+    first_p = traj[0]
+    traj = traj[1:]
+    all_speed = []
+    for point in traj:
+        l = math.dist(first_p, point)
+        speed = l/dt
+        all_speed.append(speed)
+        first_p = point
+    #print(f"Скорость по особям: {sum(all_speed)/len(all_speed)}")
+    return all_speed, sum(all_speed)/len(all_speed)
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     
     #file_ = 'cut6s'
     #file_ = 'cut50s'
     #file_ = 'empty_center'
-    file_ = "18.08.20_Fp2_плос2"
+    #file_ = "18.08.20_Fp2_плос2"
     #file_ = "video1"
     #file_ = "prombem_2minute"
     #file_ = "video0"
     #file_ = "empty_center"
     #file_ = "FILE0009 1"
+    file_ = "mean_speed"
     '''
     parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}.yml', help="Full path to yaml-file with ant data", type=str)
     parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}.mp4', help="Full path to video file", type=str)
     parser.add_argument('--pic_save_path', nargs='?', default=f'/windows/d/frames_track', help="Full path to directory to save frames", type=str)
     parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/videos/{file_}_tracks.yml', help="Full path to directory to save trackes in yaml", type=str)
     '''
-    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/full_video/{file_}_real_coords.yml', help="Full path to yaml-file with ant data", type=str)
-    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/full_video/{file_}.mp4', help="Full path to video file", type=str)
+    parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/parts_of_full/{file_}_real_coords.yml', help="Full path to yaml-file with ant data", type=str)
+    parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/parts_of_full/{file_}.mp4', help="Full path to video file", type=str)
     #parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/another_full_video/{file_}_tracks.txt', help="Full path to directory to save trackes in yaml", type=str)
     parser.add_argument('--visualisation', nargs='?', default=True, help="Make visualization or file with tracks only", type=bool)
     args = parser.parse_args()
@@ -253,16 +297,61 @@ if __name__ == '__main__':
     print("Запись треков")
     MEKF.write_tracks(tracks_save_path)
        
+    d_mean_ants = []
+    d_mean_steps = []
+    d_ns_mean_ants = []
+    d_ns_mean_steps = []
+    
+    all_pts = []
     mean_speed = []
+    v_min = 0.005
+    mean_speed_by_dist = []
     for ekf in MEKF.EKFS:
-        speed = 0
-        lenth = len(ekf.track)
-        for tr in ekf.track:
-           speed += tr[3]
-        mean_speed.append(speed/lenth)
-        
-    print(f"Средняя скорость: {sum(mean_speed)/len(mean_speed)} м/c")
+        curr_pts = []
+        mean_ants = []
+        if ekf.track_state == 2:
+            speed = 0
+            lenth = len(ekf.track)
+            for tr in ekf.track:
+                if tr[3] > v_min:
+                    speed += tr[3]
+                    curr_pts.append([tr[0], tr[1]])
+                mean_ants.append([tr[0], tr[1]])#для подсчета распределения скоростей с остановками
+            #all_pts.append(curr_pts)
+            ant_speeds, mean_ant_speed = lenth_of_traj(mean_ants, dt)
+            ns_ant_speeds, ns_mean_ant_speed = lenth_of_traj(curr_pts, dt)
             
+            d_ns_mean_ants.append(ns_mean_ant_speed)
+            d_mean_ants.append(mean_ant_speed)
+            
+            d_mean_steps += ant_speeds
+            d_ns_mean_steps += ns_ant_speeds
+            
+            #mean_speed_by_dist.append(lenth_of_traj(curr_pts, dt))
+            if speed != 0:
+                mean_speed.append(speed/lenth)
+        
+    print(f"Средняя скорость по Калману: {sum(mean_speed)/len(mean_speed)} м/c")
+    print(f"Средняя скорость по дистанции: {sum(d_ns_mean_ants)/len(d_ns_mean_ants)} м/c")
+    
+    path_to_distrib = args.video_path[:args.video_path.rfind('/')] + name + "_speed_dist.png"
+    
+    #print(len(d_mean_ants), len(d_mean_steps), len(d_ns_mean_ants), len(d_ns_mean_steps))
+    plot_gist(d_mean_ants, d_mean_steps, d_ns_mean_ants, d_ns_mean_steps, path_to_distrib)
+
+    '''
+    total_speed = []
+    print(f"Колличество траекторий: {len(all_pts)}")
+    for pts in all_pts:
+        apts = np.array(pts) # Make it a numpy array
+        lengths = np.sqrt(np.sum(np.diff(apts, axis=0)**2, axis=1)) # Length between corners
+        total_length = np.sum(lengths)
+        speed = total_length / dt
+        total_speed.append(speed)
+    
+    print(f"Средняя скорость: {sum(total_speed)/len(total_speed)} м/c")
+    '''
+    
     
     all_errors = []
     for ekf in MEKF.EKFS:

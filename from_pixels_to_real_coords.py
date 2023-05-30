@@ -148,6 +148,7 @@ def find_points(im, yaml_path):
     name = yaml_path[yaml_path.rfind('/'):yaml_path.rfind('.')]
     path = yaml_path[:yaml_path.rfind('/')] + name + '_matrix.yml'
     save_matrix(path, matrix)
+    print(path)
     print("INFO: Матрица сохранена")
     global img  
     global cache  
@@ -207,9 +208,9 @@ def change_detections_to_real(detection_yaml, matrix_yaml):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--video_path', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/18.08.20_Fp2_плос2.mp4", help="path to video for dynamic density analysis", type=str)
-    parser.add_argument('--yaml_path', nargs='?', default='/home/ubuntu/ant_detection/problems/full_video/real_coords.yml', help="outputfile path with pixels and real coords", type=str)
-    parser.add_argument('--num_points', nargs='?', default=20, help="number of points", type=int)
+    parser.add_argument('--video_path', nargs='?', default="/home/ubuntu/ant_detection/problems/parts_of_full/mean_speed.mp4", help="path to video for dynamic density analysis", type=str)
+    parser.add_argument('--yaml_path', nargs='?', default='/home/ubuntu/ant_detection/problems/parts_of_full/mean_speed_real_coords.yml', help="outputfile path with pixels and real coords", type=str)
+    parser.add_argument('--num_points', nargs='?', default=25, help="number of points", type=int)
     parser.add_argument('--action', nargs='?', default='T', help="T - tranform detection to real coords, GM - get matrix", type=str)
     args = parser.parse_args()
     

@@ -37,7 +37,7 @@ class TrackState:
     Confirmed = 2
     Deleted = 3
     # number of hitting steps to become confirmed
-    Conf_steps = 20
+    Conf_steps = 25
     # number of no_update_steps to become deleted
     Unconf_steps = 10
     # number of no_update_steps to turn confirmed ants to deleted
@@ -195,7 +195,7 @@ def distance_per_t(new_v, old_v):
         x0 = o_value[0]
         y0 = o_value[1]
         a0 = o_value[2]
-        v0 = max(0.01, o_value[3])
+        v0 = max(0.003, o_value[3])
         w0 = max(2, o_value[4])
         #v0 = 1
         #w0 = 1

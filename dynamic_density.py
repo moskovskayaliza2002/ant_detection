@@ -9,6 +9,7 @@ import pandas as pd
 import xlrd
 from shapely.geometry import Point, Polygon
 import time
+from from_pixels_to_real_coords import read_matrix
 
 def read_tracks_from_txt(path):
     tracks = []
@@ -16,7 +17,7 @@ def read_tracks_from_txt(path):
     with open(path) as f:
         for i in f:
             dic = {}
-            a = list(map(int, i[:-2].split(' ')))
+            a = list(map(float, i[:-2].split(' ')))
             no = a[0]
             frame_ind = a[1]
             a = np.array(a[2:]).reshape((-1, 5)).tolist()
@@ -25,11 +26,18 @@ def read_tracks_from_txt(path):
     return tracks
     
     
-def read_coords_yaml(yaml_path):
+def read_coords_yaml(yaml_path, matrix_path):
     with open(yaml_path) as f:
         yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
         datas = list(yaml.safe_load_all(f))
-        return datas[0]['coordinates']
+        print(datas[0]['coordinates'])
+        #return datas[0]['coordinates']
+    coords = np.array([datas[0]['coordinates']], dtype='float32')
+    matrix = read_matrix(matrix_path)
+    matrix = np.array(matrix, dtype=np.float32)
+    tranf_to_real = cv2.perspectiveTransform(coords.reshape(-1, 1, 2), matrix)
+    tranf_to_real = np.array(tranf_to_real.reshape((-1, 4, 2)))
+    return tranf_to_real[0].tolist()
 
 '''
 coords = [[x1, y1],[x2, y2],[x3, y3],[x4, y4]]
@@ -119,7 +127,7 @@ def split_1_min(start_frame, data, FPS):
     print("**************************new track************************")
     print(f'shape {distance, 5}')
     for track in data:
-        frame_ind = list(track.keys())[0]
+        frame_ind = int(list(track.keys())[0])
         tr = list(track.values())[0]
         if frame_ind == start_frame:
             new_track = [[-1, -1, -1, -1, -1]] * distance
@@ -166,7 +174,7 @@ def split_1_min(start_frame, data, FPS):
                 if np.array(new_track).shape != (distance, 5):
                     print("Размер изменился в пункте 3.2", np.array(new_track).shape)
             
-        if new_track != [[-1, -1, -1, -1, -1]] * distance:
+        if new_track != [[-1.0, -1.0, -1.0, -1.0, -1.0]] * distance:
             counter += 1
             tracks_minuta.append([new_track])
     
@@ -179,7 +187,7 @@ def check_track(track, coords):
     times_he_walk_in = 0
     any_point_in_area = False
     for point in track:
-        if type(point) == int:
+        if type(point) == float or type(point) == int:
             pass
         else:
             if is_points_in(coords, [point[0], point[1]]) and not any_point_in_area:
@@ -300,7 +308,7 @@ def read_cvc(path, name):
     density_truth = df['Проверка'].values[:lenth].tolist()
     return density, density_tracks, density_truth
     
-def count_all_minutas(coord_yaml, tracks_path, video_path):
+def count_all_minutas(coord_yaml, matrix_path, tracks_path, video_path):
     cap = cv2.VideoCapture(video_path)
     print("INFO: open video...")
     while not cap.isOpened():
@@ -308,7 +316,7 @@ def count_all_minutas(coord_yaml, tracks_path, video_path):
     #FPS = int(cap.get(cv2.CAP_PROP_FPS))
     FPS = 30
     number_of_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-    area = read_coords_yaml(coord_yaml)
+    area = read_coords_yaml(coord_yaml, matrix_path)
     print("INFO: readimg tracks...")
     #all_tracks = read_yaml(tracks_yaml)
     all_tracks = read_tracks_from_txt(tracks_path)
@@ -355,8 +363,9 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     name = args.input_video_path[args.input_video_path.rfind('/')+1:args.input_video_path.rfind('.')]
+    matrix_path = args.input_video_path[:args.input_video_path.rfind('/')] + '/' + name + '_matrix.yml'
     #path = '/home/ubuntu/ant_detection/dynamic_density/'
-    draw_graficks(count_all_minutas(args.coord_yaml, args.tracks_path, args.input_video_path), args.csv_path, name)
+    draw_graficks(count_all_minutas(args.coord_yaml, matrix_path, args.tracks_path, args.input_video_path), args.csv_path, name)
     
     sec_finish = time.time()
     struct_finish = time.localtime(sec_finish)
