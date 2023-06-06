@@ -9,7 +9,7 @@ import gc
 import sys
 import cv2
 
-MAX_AM_ANTS = 150
+MAX_AM_ANTS = 15
 ARROW_LEN = 50
 
 def HJacobian(x):
@@ -233,10 +233,14 @@ class multiEKF(object):
         self.EKFS = []
         self.deleted_ants_error = []
         self.deleted_conf_ants = np.array([]).astype(int)
-        self.color = iter(cm.rainbow(np.linspace(0, 1, MAX_AM_ANTS)))
+        self.color = iter(cm.hsv(np.linspace(0, 1, MAX_AM_ANTS)))
+        print(self.color)
         self.inv_matrix = inv_matrix
         for i in range(start_values.shape[0]):
-            c = next(self.color)
+            try:
+                c = next(self.color)
+            except StopIteration as e:
+                c = [0,0,0,0]
             ekf = AntEKF(start_values[i][1:], start_values[i][0], self.R_diag, self.Q, c, self.dt, frame_ind)                                    
             self.EKFS.append(ekf)                        
     
@@ -299,7 +303,11 @@ class multiEKF(object):
             for ind in new_objects:            
                 #new_x = np.zeros(5)
                 #new_x[:3] = new_values[ind][1:]
-                ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q, next(self.color), self.dt, frame_ind)                                    
+                try:
+                    c = next(self.color)
+                except StopIteration as e:
+                    c = [0,0,0,0]  
+                ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q, c, self.dt, frame_ind)                                    
                 self.EKFS.append(ekf)
                     
             # 5. forget bad filters (long no update, huge covs, etc.) 
@@ -402,8 +410,8 @@ class multiEKF(object):
             '''
             
             #УДАЛИ, ЭТО ДЛЯ ПРОВЕРКИ СОСТОЯНИЙ ТРЕКА
-            for ekf in self.EKFS:
-                ekf.check_color()
+            #for ekf in self.EKFS:
+            #    ekf.check_color()
     
     
     def get_all_ants_data_as_array(self):
@@ -420,7 +428,13 @@ class multiEKF(object):
             points = np.array([points])
             tranf_to_pix = cv2.perspectiveTransform(points.reshape(-1, 1, 2), self.inv_matrix)
             tranf_to_pix = np.array(tranf_to_pix.reshape((-1, 1, 2)), dtype='int32')
-            image = cv2.polylines(image, [tranf_to_pix], isClosed=False, color=ekf.color, thickness=2)
+            #print(f"цвет в принте: {ekf.color}")
+            c_1 = (((ekf.color[0] - 0) * 255) / 1) + 0
+            c_2 = (((ekf.color[1] - 0) * 255) / 1) + 0
+            c_3 = (((ekf.color[2] - 0) * 255) / 1) + 0
+            #c_4 = (((ekf.color[3] - 0) * 255) / 1) + 0
+            new_color = (c_1, c_2, c_3)
+            image = cv2.polylines(image, [tranf_to_pix], isClosed=False, color=new_color, thickness=2)
             
         return image
         

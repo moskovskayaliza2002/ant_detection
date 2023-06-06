@@ -209,15 +209,16 @@ def change_detections_to_real(detection_yaml, matrix_yaml):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--video_path', nargs='?', default="/home/ubuntu/ant_detection/problems/parts_of_full/mean_speed.mp4", help="path to video for dynamic density analysis", type=str)
-    parser.add_argument('--yaml_path', nargs='?', default='/home/ubuntu/ant_detection/problems/parts_of_full/mean_speed_real_coords.yml', help="outputfile path with pixels and real coords", type=str)
+    #parser.add_argument('--yaml_path', nargs='?', default='/home/ubuntu/ant_detection/problems/parts_of_full/mean_speed_real_coords.yml', help="outputfile path with pixels and real coords", type=str)
     parser.add_argument('--num_points', nargs='?', default=25, help="number of points", type=int)
     parser.add_argument('--action', nargs='?', default='T', help="T - tranform detection to real coords, GM - get matrix", type=str)
     args = parser.parse_args()
     
     if args.action == 'GM':
+        yaml_path = args.video_path[:args.video_path.rfind('/')] + args.video_path[args.video_path.rfind('/'):args.video_path.rfind('.')] + "_real_coords.yml"
         print("INFO: двойной клик левой кнопкой мыши поставит точку, двойной клик колесика отменит последнюю нарисованную точку")
-        img = correlate_points(args.video_path, args.num_points, args.yaml_path)
-        find_points(img, args.yaml_path)
+        img = correlate_points(args.video_path, args.num_points, yaml_path)
+        find_points(img, yaml_path)
     
     elif args.action == 'T':
         name = args.video_path[args.video_path.rfind('/'):args.video_path.rfind('.')]
