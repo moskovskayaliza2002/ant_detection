@@ -105,7 +105,7 @@ def correlate_points(video_path, num_points, yaml_path):
                 print("_______УДАЛЕНО_______")
                 break
             if next_step == 13:
-                save_coords_to_yaml(args.yaml_path, pix_coords, real_coords, args.video_path)
+                save_coords_to_yaml(yaml_path, pix_coords, real_coords, args.video_path)
                 print("_______СОХРАНЕНО_______")
                 break
         cv2.destroyAllWindows()
@@ -141,14 +141,16 @@ def read_matrix(yaml_path):
         datas = list(yaml.safe_load_all(f))
         return datas[0]['matrix']
     
-def find_points(im, yaml_path):
+def find_points(im, video_path):
     global coords
     coords = read_coords_yaml(yaml_path)
     matrix = find_matrix(coords)
-    name = yaml_path[yaml_path.rfind('/'):yaml_path.rfind('.')]
-    path = yaml_path[:yaml_path.rfind('/')] + name + '_matrix.yml'
-    save_matrix(path, matrix)
-    print(path)
+
+    name = video_path[video_path.rfind('/'):video_path.rfind('.')]
+    matrix_path = video_path[:video_path.rfind('/')] + name + '_matrix.yml'
+    #path = yaml_path[:yaml_path.rfind('/')] + name + '_matrix.yml'
+    save_matrix(matrix_path, matrix)
+    print(matrix_path)
     print("INFO: Матрица сохранена")
     global img  
     global cache  

@@ -11,6 +11,7 @@ import cv2
 
 MAX_AM_ANTS = 15
 ARROW_LEN = 50
+ant_identifier = 0
 
 def HJacobian(x):
     H = [[1, 0, 0 ,0, 0],
@@ -49,7 +50,6 @@ class AntEKF(ExtendedKalmanFilter):
     X_SIZE = 5
     # dim_z: x, y, a
     Z_SIZE = 3
-    
     '''
     start x - [x, y, a, v, w]
     p - probabil of detection
@@ -57,7 +57,7 @@ class AntEKF(ExtendedKalmanFilter):
     Q_diag - [qx, qy, qa, qv, qw]
     dt - 1/fps
     '''
-    def __init__(self, start_x, p, R_diag, Q, color, dt, frame_ind):
+    def __init__(self, start_x, p, R_diag, Q, color, dt, frame_ind, ind):
         super(AntEKF, self).__init__(AntEKF.X_SIZE, AntEKF.Z_SIZE)
                 
         self.dt = dt 
@@ -74,6 +74,7 @@ class AntEKF(ExtendedKalmanFilter):
         self.hits = 1
         self.no_update_steps = 0
         self.frame_idx = frame_ind
+        self.identifier = ind
         
         self.old_real_val = np.array([])
                 
@@ -236,12 +237,15 @@ class multiEKF(object):
         self.color = iter(cm.hsv(np.linspace(0, 1, MAX_AM_ANTS)))
         print(self.color)
         self.inv_matrix = inv_matrix
+        global ant_identifier
         for i in range(start_values.shape[0]):
             try:
                 c = next(self.color)
             except StopIteration as e:
                 c = [0,0,0,0]
-            ekf = AntEKF(start_values[i][1:], start_values[i][0], self.R_diag, self.Q, c, self.dt, frame_ind)                                    
+                
+            ant_identifier += 1
+            ekf = AntEKF(start_values[i][1:], start_values[i][0], self.R_diag, self.Q, c, self.dt, frame_ind, ant_identifier)                                    
             self.EKFS.append(ekf)                        
     
     '''
@@ -300,6 +304,7 @@ class multiEKF(object):
             
                     
             # 4. add new filters for new objects
+            global ant_identifier
             for ind in new_objects:            
                 #new_x = np.zeros(5)
                 #new_x[:3] = new_values[ind][1:]
@@ -307,7 +312,8 @@ class multiEKF(object):
                     c = next(self.color)
                 except StopIteration as e:
                     c = [0,0,0,0]  
-                ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q, c, self.dt, frame_ind)                                    
+                ant_identifier += 1
+                ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q, c, self.dt, frame_ind, ant_identifier)                                    
                 self.EKFS.append(ekf)
                     
             # 5. forget bad filters (long no update, huge covs, etc.) 
@@ -429,12 +435,15 @@ class multiEKF(object):
             tranf_to_pix = cv2.perspectiveTransform(points.reshape(-1, 1, 2), self.inv_matrix)
             tranf_to_pix = np.array(tranf_to_pix.reshape((-1, 1, 2)), dtype='int32')
             #print(f"цвет в принте: {ekf.color}")
-            c_1 = (((ekf.color[0] - 0) * 255) / 1) + 0
-            c_2 = (((ekf.color[1] - 0) * 255) / 1) + 0
-            c_3 = (((ekf.color[2] - 0) * 255) / 1) + 0
+            r = int((((ekf.color[0] - 0) * 255) / 1) + 0)
+            g = int((((ekf.color[1] - 0) * 255) / 1) + 0)
+            b = int((((ekf.color[2] - 0) * 255) / 1) + 0)
             #c_4 = (((ekf.color[3] - 0) * 255) / 1) + 0
-            new_color = (c_1, c_2, c_3)
+            new_color = (b, r, g)
+            print(f"id: {ekf.identifier}, color: {new_color}")
             image = cv2.polylines(image, [tranf_to_pix], isClosed=False, color=new_color, thickness=2)
+            text = '# ' + str(int(ekf.identifier))
+            image = cv2.putText(image, text, (tranf_to_pix[-1][0][0], tranf_to_pix[-1][0][1]), cv2.FONT_HERSHEY_PLAIN, 1.0, new_color, thickness=1)
             
         return image
         
@@ -512,14 +521,20 @@ class multiEKF(object):
             print(f'всего треков {len(self.EKFS)} + {self.deleted_conf_ants.shape[0]}')
             for ekf in self.EKFS:
                 if ekf.is_confirmed():
-                    s1 = str(counter) + ' ' + str(ekf.frame_idx) + ' '
+                    r = int((((ekf.color[0] - 0) * 255) / 1) + 0)
+                    g = int((((ekf.color[1] - 0) * 255) / 1) + 0)
+                    b = int((((ekf.color[2] - 0) * 255) / 1) + 0)
+                    s1 = str(counter) + ' ' + str(ekf.frame_idx) + ' ' + str(ekf.identifier) + ' ' + str(r) + ' ' + str(g) + ' ' + str(b) + ' '
                     s2 = ''
                     for i in np.array(ekf.track).tolist():
                         s2 += ' '.join(map(str, i)) + ' '
                     file.write(s1 + s2 + '\n')
                     counter += 1
             for ekf in self.deleted_conf_ants:
-                s1 = str(counter) + ' ' + str(ekf.frame_idx) + ' '
+                r = int((((ekf.color[0] - 0) * 255) / 1) + 0)
+                g = int((((ekf.color[1] - 0) * 255) / 1) + 0)
+                b = int((((ekf.color[2] - 0) * 255) / 1) + 0)
+                s1 = str(counter) + ' ' + str(ekf.frame_idx) + ' ' + str(ekf.identifier) + ' ' + str(r) + ' ' + str(g) + ' ' + str(b) + ' '
                 s2 = ''
                 for i in np.array(ekf.track).tolist():
                         s2 += ' '.join(map(str, i)) + ' '

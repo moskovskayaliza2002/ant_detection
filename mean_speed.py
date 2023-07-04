@@ -4,26 +4,54 @@ import cv2
 import pandas as pd
 import math
 import matplotlib.pyplot as plt
-
+import openpyxl 
+from openpyxl.styles import PatternFill
 #https://www.codespeedy.com/how-to-add-color-to-excel-cells-using-python/ 
 # для того чтобы цвета ячеек эксель менять
-
+def add_colors(colors, track_path):
+    path = get_pathes(track_path, 'E')
+    wb = openpyxl.load_workbook(path)
+    ws = wb['speed']
+    for no, c in enumerate(colors):
+        fill_cell = PatternFill(patternType='solid', fgColor=c)
+        cell = 'A' + str(no + 2)
+        ws[cell].fill = fill_cell
+    wb.save(path)
+    
 def rgb_to_hex(r, g, b):
-    return '#{:02x}{:02x}{:02x}'.format(r, g, b)
+    return '{:02x}{:02x}{:02x}'.format(r, g, b).upper()
 
 def read_tracks_from_txt(path):
+    frames = []
+    inds = []
+    color = []
     tracks = []
     last_no = 0
     with open(path) as f:
         for i in f:
             dic = {}
             a = list(map(float, i[:-2].split(' ')))
-            no = a[0]
-            frame_ind = a[1]
-            a = np.array(a[2:]).reshape((-1, 5)).tolist()
-            dic[frame_ind] = a
-            tracks.append(dic)
-    return tracks
+            if (len(a) - 6) % 5 != 0:
+                print(len(a) - 6)
+            else:
+                no = a[0]
+                frame_ind = a[1]
+                identifier = a[2]
+                r = int(a[3])
+                g = int(a[4])
+                b = int(a[5])
+                c = rgb_to_hex(r, g, b)
+                print(f"id: {identifier}, color: {(r, g, b)}")
+                a = np.array(a[6:]).reshape((-1, 5)).tolist()
+                #dic[frame_ind] = a
+                #tracks.append(dic)
+                
+                frames.append(frame_ind)
+                inds.append(identifier)
+                color.append(c)
+                tracks.append(a)
+            
+    return [inds, frames, color, tracks]
  
  
 def mean_speed_for_ant(traj, dt):
@@ -92,6 +120,8 @@ def get_pathes(path, param):
         return folder + name + '_speed.csv'
     if param == 'G':
         return folder + name + '_distrib.png'
+    if param == 'E':
+        return folder + name + '_speed.xlsx'
         
 def get_speed(p_1, p_2, dt):
     l = math.dist(p_1, p_2)
@@ -101,7 +131,7 @@ def get_speed(p_1, p_2, dt):
 
 def count_mean_speed(track_path):
     #Все траектории
-    all_tracks = read_tracks_from_txt(track_path)
+    all_ants = read_tracks_from_txt(track_path)
     video_path = get_pathes(track_path, 'V')
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
@@ -124,9 +154,14 @@ def count_mean_speed(track_path):
     time_of_start = []
     v_min = 0.005
     mean_speed_by_dist = []
-    for ant in all_tracks:
-        frame = list(ant.keys())[0]
-        track = list(ant.values())[0]
+    for i in range(len(all_ants[0])):
+        
+        ind = all_ants[0][i]
+        frame = all_ants[1][i]
+        color = all_ants[2][i]
+        track = all_ants[3][i]
+        #frame = list(ant.keys())[0]
+        #track = list(ant.values())[0]
         time_of_start.append(round(frame * dt, 1))
         curr_pts = []
         mean_ants = []
@@ -163,9 +198,12 @@ def count_mean_speed(track_path):
     time_of_stops = (round(x * dt, 4) for x in time_of_stops)
     time_of_movement = (round(x * dt, 4) for x in time_of_movement)
     
-    df = pd.DataFrame({'Муравей': range(1, len(all_tracks)+1), 'Время начала отслеживания (с)': time_of_start,'Длина пути (м)': lenthes, 'Время остановок (с)': time_of_stops, 'Время пути (с)': time_of_movement, 'Средняя скорость с остановками (м/c)': d_mean_ants, 'Средняя скорость без остановок (м/c)': d_ns_mean_ants})
-    save_path = get_pathes(track_path, 'C')
-    df.to_csv(save_path, index= False)
+    df = pd.DataFrame({'Муравей': all_ants[0], 'Время начала отслеживания (с)': time_of_start,'Длина пути (м)': lenthes, 'Время остановок (с)': time_of_stops, 'Время пути (с)': time_of_movement, 'Средняя скорость с остановками (м/c)': d_mean_ants, 'Средняя скорость без остановок (м/c)': d_ns_mean_ants})
+    #save_path = get_pathes(track_path, 'C')
+    #df.to_csv(save_path, index=False)
+    save_path = get_pathes(track_path, 'E')
+    df.to_excel(save_path, sheet_name="speed",index=False)
+    add_colors(all_ants[2], track_path)
     gist_path = get_pathes(track_path, 'G')
     plot_gist(d_mean_ants, d_mean_steps, d_ns_mean_ants, d_ns_mean_steps, gist_path)
     print(f"Средняя скорость по Калману: {sum(mean_speed)/len(mean_speed)} м/c")
