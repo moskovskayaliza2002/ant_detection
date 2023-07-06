@@ -234,18 +234,23 @@ class multiEKF(object):
         self.EKFS = []
         self.deleted_ants_error = []
         self.deleted_conf_ants = np.array([]).astype(int)
-        self.color = iter(cm.hsv(np.linspace(0, 1, MAX_AM_ANTS)))
-        print(self.color)
+        a = np.linspace(0, 1, MAX_AM_ANTS)
+        cmap = cm.hsv(a)
+        self.color = iter([[int(x*255) for x in b] for b in cmap])
+        #print(self.color)
         self.inv_matrix = inv_matrix
         global ant_identifier
         for i in range(start_values.shape[0]):
             try:
                 c = next(self.color)
+                c_r = c[0]
+                c_g = c[1]
+                c_b = c[2]
             except StopIteration as e:
-                c = [0,0,0,0]
+                c_r, c_g, c_b = (0,0,0)
                 
             ant_identifier += 1
-            ekf = AntEKF(start_values[i][1:], start_values[i][0], self.R_diag, self.Q, c, self.dt, frame_ind, ant_identifier)                                    
+            ekf = AntEKF(start_values[i][1:], start_values[i][0], self.R_diag, self.Q, (c_r, c_g, c_b), self.dt, frame_ind, ant_identifier)                                    
             self.EKFS.append(ekf)                        
     
     '''
@@ -310,10 +315,14 @@ class multiEKF(object):
                 #new_x[:3] = new_values[ind][1:]
                 try:
                     c = next(self.color)
+                    c_r = c[0]
+                    c_g = c[1]
+                    c_b = c[2]
+                    
                 except StopIteration as e:
-                    c = [0,0,0,0]  
+                    c_r, c_g, c_b = (0,0,0)  
                 ant_identifier += 1
-                ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q, c, self.dt, frame_ind, ant_identifier)                                    
+                ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q, (c_r, c_g, c_b), self.dt, frame_ind, ant_identifier)                                    
                 self.EKFS.append(ekf)
                     
             # 5. forget bad filters (long no update, huge covs, etc.) 
@@ -435,12 +444,16 @@ class multiEKF(object):
             tranf_to_pix = cv2.perspectiveTransform(points.reshape(-1, 1, 2), self.inv_matrix)
             tranf_to_pix = np.array(tranf_to_pix.reshape((-1, 1, 2)), dtype='int32')
             #print(f"цвет в принте: {ekf.color}")
-            r = int((((ekf.color[0] - 0) * 255) / 1) + 0)
-            g = int((((ekf.color[1] - 0) * 255) / 1) + 0)
-            b = int((((ekf.color[2] - 0) * 255) / 1) + 0)
+            #r = int((((ekf.color[0] - 0) * 255) / 1) + 0)
+            #g = int((((ekf.color[1] - 0) * 255) / 1) + 0)
+            #b = int((((ekf.color[2] - 0) * 255) / 1) + 0)
             #c_4 = (((ekf.color[3] - 0) * 255) / 1) + 0
-            new_color = (b, r, g)
-            print(f"id: {ekf.identifier}, color: {new_color}")
+            r = ekf.color[0]
+            g = ekf.color[1]
+            b = ekf.color[2]
+            new_color = (b, g, r)
+            print(f"цвет: {new_color}")
+            #print(f"id: {ekf.identifier}, color: {new_color}")
             image = cv2.polylines(image, [tranf_to_pix], isClosed=False, color=new_color, thickness=2)
             text = '# ' + str(int(ekf.identifier))
             image = cv2.putText(image, text, (tranf_to_pix[-1][0][0], tranf_to_pix[-1][0][1]), cv2.FONT_HERSHEY_PLAIN, 1.0, new_color, thickness=1)
@@ -521,20 +534,32 @@ class multiEKF(object):
             print(f'всего треков {len(self.EKFS)} + {self.deleted_conf_ants.shape[0]}')
             for ekf in self.EKFS:
                 if ekf.is_confirmed():
-                    r = int((((ekf.color[0] - 0) * 255) / 1) + 0)
-                    g = int((((ekf.color[1] - 0) * 255) / 1) + 0)
-                    b = int((((ekf.color[2] - 0) * 255) / 1) + 0)
-                    s1 = str(counter) + ' ' + str(ekf.frame_idx) + ' ' + str(ekf.identifier) + ' ' + str(r) + ' ' + str(g) + ' ' + str(b) + ' '
+                    r = ekf.color[0]
+                    g = ekf.color[1]
+                    b = ekf.color[2]
+                    print(r,g,b)
+                    #r = int((((ekf.color[0] - 0) * 255) / 1) + 0)
+                    #g = int((((ekf.color[1] - 0) * 255) / 1) + 0)
+                    #b = int((((ekf.color[2] - 0) * 255) / 1) + 0)
+                    hex_color = '{:02x}{:02x}{:02x}'.format(r, g, b).upper()
+                    #s1 = str(counter) + ' ' + str(ekf.frame_idx) + ' ' + str(ekf.identifier) + ' ' + str(r) + ' ' + str(g) + ' ' + str(b) + ' '
+                    s1 = str(counter) + ' ' + str(ekf.frame_idx) + ' ' + str(ekf.identifier) + ' ' + hex_color + ' '
                     s2 = ''
                     for i in np.array(ekf.track).tolist():
                         s2 += ' '.join(map(str, i)) + ' '
                     file.write(s1 + s2 + '\n')
                     counter += 1
             for ekf in self.deleted_conf_ants:
-                r = int((((ekf.color[0] - 0) * 255) / 1) + 0)
-                g = int((((ekf.color[1] - 0) * 255) / 1) + 0)
-                b = int((((ekf.color[2] - 0) * 255) / 1) + 0)
-                s1 = str(counter) + ' ' + str(ekf.frame_idx) + ' ' + str(ekf.identifier) + ' ' + str(r) + ' ' + str(g) + ' ' + str(b) + ' '
+                r = ekf.color[0]
+                g = ekf.color[1]
+                b = ekf.color[2]
+                print(r,g,b)
+                #r = int((((ekf.color[0] - 0) * 255) / 1) + 0)
+                #g = int((((ekf.color[1] - 0) * 255) / 1) + 0)
+                #b = int((((ekf.color[2] - 0) * 255) / 1) + 0)
+                hex_color = '{:02x}{:02x}{:02x}'.format(r, g, b).upper()
+                #s1 = str(counter) + ' ' + str(ekf.frame_idx) + ' ' + str(ekf.identifier) + ' ' + str(r) + ' ' + str(g) + ' ' + str(b) + ' '
+                s1 = str(counter) + ' ' + str(ekf.frame_idx) + ' ' + str(ekf.identifier) + ' ' + hex_color + ' '
                 s2 = ''
                 for i in np.array(ekf.track).tolist():
                         s2 += ' '.join(map(str, i)) + ' '

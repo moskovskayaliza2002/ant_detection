@@ -225,7 +225,7 @@ if __name__ == '__main__':
     elif args.action == 'T':
         name = args.video_path[args.video_path.rfind('/'):args.video_path.rfind('.')]
         pixel_path = args.video_path[:args.video_path.rfind('/')] + name + '.yml'
-        matrix_path = args.video_path[:args.video_path.rfind('/')] + name + '_matrix.yml'
+        matrix_path = args.video_path[:args.video_path.rfind('/')] + name + '_real_coords' + '_matrix.yml'
         change_detections_to_real(pixel_path, matrix_path)
     else:
         print("Нет такого параметра запуска")

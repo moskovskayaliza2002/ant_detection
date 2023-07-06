@@ -138,7 +138,7 @@
 ### Шаг 4: Скорости
 Для того, чтобы получить результаты анализа скоростей муравьев, нужно запустить программу *mean_speed.py*, передав туда путь до троекторий в текстовом виде, вот так:
 
-    python3 dynamic_density.py --tracks_path /home/ubuntu/Documents/Leto2022/video_tracks.txt
+    python3 mean_speed.py --tracks_path /home/ubuntu/Documents/Leto2022/video_tracks.txt
     
 По окончании обработки, вы получите файл формата "video_speed.csv" содержающую информацию по каждой особи в следующем виде:
 
