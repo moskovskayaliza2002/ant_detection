@@ -170,8 +170,8 @@ def find_points(im, video_path):
         if cv2.waitKey (100) == ord ('q'):
             break
     cv2.destroyAllWindows()
-    
-    
+
+        
 def change_detections_to_real(detection_yaml, matrix_yaml):
     #Менятся порядок записи в файл, посмотри, как это влияет
     ANT_DATA = read_yaml(detection_yaml)
@@ -180,7 +180,7 @@ def change_detections_to_real(detection_yaml, matrix_yaml):
     print("INFO: Матрица считана")
     matrix = np.array(matrix, dtype=np.float32)
     for frame in ANT_DATA['frames']:
-        print(frame['frame'])
+        #print(frame['frame'])
         if len(frame['bboxes']):
             orig_bb = np.resize(np.float32(np.array(frame['bboxes'])), (len(frame['bboxes']), 2, 2))
             #print("До преобразования: ", frame['bboxes'])

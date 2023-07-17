@@ -322,7 +322,7 @@ class multiEKF(object):
                 except StopIteration as e:
                     c_r, c_g, c_b = (0,0,0)  
                 ant_identifier += 1
-                ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q, (c_r, c_g, c_b), self.dt, frame_ind, ant_identifier)                                    
+                ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q, (c_r, c_g, c_b), self.dt, frame_ind, ant_identifier) 
                 self.EKFS.append(ekf)
                     
             # 5. forget bad filters (long no update, huge covs, etc.) 
@@ -427,6 +427,24 @@ class multiEKF(object):
             #УДАЛИ, ЭТО ДЛЯ ПРОВЕРКИ СОСТОЯНИЙ ТРЕКА
             #for ekf in self.EKFS:
             #    ekf.check_color()
+            
+        #возможное решение проблемы когда на первом кадре нет детекций
+        elif new_values.size != 0:
+            new_objects = list(range(new_values.shape[0]))
+            for ind in new_objects:            
+                #new_x = np.zeros(5)
+                #new_x[:3] = new_values[ind][1:]
+                try:
+                    c = next(self.color)
+                    c_r = c[0]
+                    c_g = c[1]
+                    c_b = c[2]
+                    
+                except StopIteration as e:
+                    c_r, c_g, c_b = (0,0,0)  
+                ant_identifier += 1
+                ekf = AntEKF(new_values[ind, 1:], new_values[ind][0], self.R_diag, self.Q, (c_r, c_g, c_b), self.dt, frame_ind, ant_identifier) 
+                self.EKFS.append(ekf)
     
     
     def get_all_ants_data_as_array(self):
@@ -452,7 +470,7 @@ class multiEKF(object):
             g = ekf.color[1]
             b = ekf.color[2]
             new_color = (b, g, r)
-            print(f"цвет: {new_color}")
+            #print(f"цвет: {new_color}")
             #print(f"id: {ekf.identifier}, color: {new_color}")
             image = cv2.polylines(image, [tranf_to_pix], isClosed=False, color=new_color, thickness=2)
             text = '# ' + str(int(ekf.identifier))
@@ -537,7 +555,7 @@ class multiEKF(object):
                     r = ekf.color[0]
                     g = ekf.color[1]
                     b = ekf.color[2]
-                    print(r,g,b)
+                    #print(r,g,b)
                     #r = int((((ekf.color[0] - 0) * 255) / 1) + 0)
                     #g = int((((ekf.color[1] - 0) * 255) / 1) + 0)
                     #b = int((((ekf.color[2] - 0) * 255) / 1) + 0)
@@ -553,7 +571,7 @@ class multiEKF(object):
                 r = ekf.color[0]
                 g = ekf.color[1]
                 b = ekf.color[2]
-                print(r,g,b)
+                #print(r,g,b)
                 #r = int((((ekf.color[0] - 0) * 255) / 1) + 0)
                 #g = int((((ekf.color[1] - 0) * 255) / 1) + 0)
                 #b = int((((ekf.color[2] - 0) * 255) / 1) + 0)

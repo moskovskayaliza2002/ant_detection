@@ -360,6 +360,29 @@ def batch_test(root, model, device, flag, conf_threshold, iou_threshold, nms_thr
             one_image_test(image_path, model, device, flag, conf_threshold, nms_threshold, iou_threshold, delta_w, delta_h, splits_vertical, splits_horizontal, show_flag)
             counter += 1
             
+
+# Print iterations progress
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    # Print New Line on Complete
+    if iteration == total: 
+        print()
+        
             
 def full_video(filename, model, device, targets, conf_threshold, nms_threshold, iou_threshold, delta_w, delta_h, splits_vertical, splits_horizontal):
     #Тестироване модели на видеофайле
@@ -394,6 +417,7 @@ def full_video(filename, model, device, targets, conf_threshold, nms_threshold, 
     #pos_frame = cap.get(cv2.CAP_PROP_POS_FRAMES)
     maxim_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     
+    printProgressBar(0, maxim_frames, prefix = 'Progress:', suffix = 'of frames processed', length = 50)
     while True:
         flag, frame = cap.read()
         frame = cv2.resize(frame, size, interpolation = cv2.INTER_AREA)
@@ -421,7 +445,8 @@ def full_video(filename, model, device, targets, conf_threshold, nms_threshold, 
                 #yaml.dump(my_dict, f)
             #write_pred_into_file(pos_frame, pred_b, pred_kp, pred_sc, yml_filename)
             out.write(pred_im)
-            print(f'{pos_frame} frame from {maxim_frames}')
+            printProgressBar(pos_frame, maxim_frames, prefix = 'Progress:', suffix = 'of frames processed', length = 50)
+            #print(f'{pos_frame} frame from {maxim_frames}')
         else:
             #Читаем заново, если следующий кадр не готов
             cap.set(cv2.CAP_PROP_POS_FRAMES, pos_frame-1)
@@ -434,7 +459,7 @@ def full_video(filename, model, device, targets, conf_threshold, nms_threshold, 
         if cap.get(cv2.CAP_PROP_POS_FRAMES) == cap.get(cv2.CAP_PROP_FRAME_COUNT):
             #Если прочитали все кадры - выходим из цикла
             break
-        
+    print("INFO: Запись детекций в файл")    
     #Пушим всю информацию о кадрах    
     with open(yml_filename, 'a') as f:
         yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))

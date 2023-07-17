@@ -24,7 +24,7 @@ l = 0.00001
 
 Q = np.array([[0.002, 0, 0, 0, 0], 
               [0, 0.002, 0, 0, 0],
-              [0, 0, 0.1, 0, 0],
+              [0, 0, 0.01, 0, 0],
               [0, 0, 0, 0.0001, 0],
               [0, 0, 0, 0, 0.0001]])
 
@@ -45,15 +45,39 @@ dt = 0.1
 mh = 1.85
 P_limit = np.inf
 
+
+# Print iterations progress
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    # Print New Line on Complete
+    if iteration == total: 
+        print()
+
 # Функция обработки фрейма, для сохранения
 def proceed_frame_cv2(frame, frame_v, W, H, dt, inv_matrix):
     global MEKF
     ants = get_ants(frame, dt)
     image = plot_ants_cv2(frame_v, ants)
     if MEKF is None:
-        MEKF = multiEKF(ants, R_diag,  Q, dt, mh, P_limit, W, H, int(frame['frame']), inv_matrix)
+        MEKF = multiEKF(ants, R_diag, Q, dt, mh, P_limit, W, H, int(frame['frame']), inv_matrix)
     else:
         MEKF.proceed(ants, dt, int(frame['frame']))
+    #print("Траекторий построилось: ", len(MEKF.EKFS))
     image = MEKF.draw_tracks_cv2(image)
     return image
     
@@ -222,19 +246,20 @@ if __name__ == '__main__':
     
     name = video_path[video_path.rfind('/'):video_path.rfind('.')]
     tracks_save_path = video_path[:video_path.rfind('/')] + name + '_tracks' + '.txt'
-    path_to_matrix = video_path[:video_path.rfind('/')] + name + "_matrix.yml"
-    
+    path_to_matrix = video_path[:video_path.rfind('/')] + name + "_real_coords_matrix.yml"
+    print(f"INFO: matrix read at {path_to_matrix}")
+    print(f"INFO: tracks saving path: {tracks_save_path}")
     matrix = read_matrix(path_to_matrix)
     matrix = np.array(matrix, dtype=np.float32)
     inv_matrix = np.linalg.inv(matrix)
     
-    
-    print(f"Loading data from {yaml_path}...")
+    print("----------------Построение траекторий----------------")
+    print(f"INFO: Loading data from {yaml_path}...")
     ANT_DATA = read_yaml(yaml_path)    
     #print(d.keys() for d in ANT_DATA['frames'])
     dt = 1/ANT_DATA['FPS']
 
-    print(f"Loading video {args.video_path}...")
+    print(f"INFO: Loading video {args.video_path}...")
     cap = cv2.VideoCapture(args.video_path)   
     while not cap.isOpened():
         cap = cv2.VideoCapture(args.video_path)
@@ -244,7 +269,7 @@ if __name__ == '__main__':
     maxim_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     count = 1
     ax = None
-    print(f"всего {len(ANT_DATA['frames'])}")
+    #print(f"всего {len(ANT_DATA['frames'])}")
     name = args.video_path[args.video_path.rfind('/'):args.video_path.rfind('.')]
     new_filename = args.video_path[:args.video_path.rfind('/')] + name + '_real_tracks' + '.mp4'
     #new_filename = args.video_path[:args.video_path.rfind('/')] + name + '_tracks' + '.mp4'
@@ -268,6 +293,7 @@ if __name__ == '__main__':
             plt.pause(0.1)
             plt.show()
     '''
+    printProgressBar(0, maxim_frames, prefix = 'Progress:', suffix = 'of frames processed', length = 50)
     if args.visualisation:
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         fps = cap.get(cv2.CAP_PROP_FPS)
@@ -276,7 +302,9 @@ if __name__ == '__main__':
         size = (int(w), int(h))
         out = cv2.VideoWriter(new_filename, fourcc, fps, size, True)
         for frame in ANT_DATA['frames']:
-            print('Frame:', count, '/', maxim_frames)
+            #if count % 1000 == 0:
+            #    print('Frame:', count, '/', maxim_frames)
+            printProgressBar(count, maxim_frames, prefix = 'Progress:', suffix = 'of frames processed', length = 50)
             ret, frame_v = cap.read()
             pred_im = proceed_frame_cv2(frame, frame_v, w, h, dt, inv_matrix)
             #cv2.imshow('image', frame_v)

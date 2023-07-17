@@ -13,7 +13,6 @@ def add_colors(colors, track_path):
     wb = openpyxl.load_workbook(path)
     ws = wb['speed']
     for no, c in enumerate(colors):
-        print(f"tcvet: {c}")
         fill_cell = PatternFill(patternType='solid', fgColor=c)
         cell = 'B' + str(no + 2)
         ws[cell].fill = fill_cell
@@ -43,7 +42,6 @@ def read_tracks_from_txt(path):
                 #b = int(a[5])
                 #c = rgb_to_hex(r, g, b)
                 c = a[3]
-                print(f"id: {identifier}, color: {c}")
                 a = np.array([float(x) for x in a[4:]]).reshape((-1, 5)).tolist()
                 #dic[frame_ind] = a
                 #tracks.append(dic)
