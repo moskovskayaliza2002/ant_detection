@@ -174,6 +174,7 @@ def find_points(im, video_path):
         
 def change_detections_to_real(detection_yaml, matrix_yaml):
     #Менятся порядок записи в файл, посмотри, как это влияет
+    print(f"reading... {detection_yaml}")
     ANT_DATA = read_yaml(detection_yaml)
     print("INFO: Данные считаны")
     matrix = read_matrix(matrix_yaml)
