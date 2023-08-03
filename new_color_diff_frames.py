@@ -3,6 +3,7 @@ import cv2
 import argparse
 import os
 import shutil
+import pandas as pd
 
 def generate_diff_image(NUM_FRAMES_IN_DATA, video_path, saving_frame_path):
     if not os.path.exists(saving_frame_path):
@@ -56,88 +57,97 @@ def generate_diff_image(NUM_FRAMES_IN_DATA, video_path, saving_frame_path):
         lower_white = np.array([0,0,15])
         upper_white = np.array([255,255,255])
         mask = cv2.inRange(diff_1_c, lower_white, upper_white)
-        blured_mask = cv2.GaussianBlur(src=mask, ksize=(5,5), sigmaX=0)
+        blured_mask = cv2.GaussianBlur(src=mask, ksize=(3,3), sigmaX=0)
         mask_inv = cv2.bitwise_not(blured_mask)
         
+        #поиск контуров на маске
+        contours, hierarchy = cv2.findContours(blured_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        img_contours = np.zeros(frame.shape)
+        cv2.drawContours(img_contours, contours, -1, (0,255,0), thickness=cv2.FILLED)
+        
+        #cv2.imshow("old_counters", img_contours)
+        #cv2.waitKey(0)
+        #cv2.destroyAllWindows()
+        
+        areas = []
+        ind = []
+        contours = np.array(contours, dtype=object)
+        for j, cnt in enumerate(contours):
+            area = cv2.contourArea(cnt)
+            if area > 40:
+                ind.append(j)
+        new_contours = []
+        for j in ind:
+            new_contours.append(contours[j])
+            
+        vis = np.zeros(frame.shape, dtype='uint8')
+        cv2.drawContours(vis, new_contours, -1, (255,255,255), thickness=cv2.FILLED)
+        vis = vis[:, :, 0]
+        
+        #cv2.imshow('new_contours', vis)
+        #cv2.waitKey(0)
+        #cv2.destroyAllWindows()
+        
         # Extract the dimensions of the original image
+        '''
         rows, cols, channels = frame.shape
         frame = frame[0:rows, 0:cols]
-        
-        red_image = np.zeros((1080,1920,3), np.uint8)
+        red_image = np.zeros(frame.shape, dtype='uint8')
         red_image[:]=(0,0,255)
+        '''
  
         # Bitwise-OR mask and original image
+        '''
         alpha = 0.5
         overlay1 = frame.copy()
-        ants = cv2.bitwise_or(frame, red_image, mask = blured_mask)
+        print(red_image.shape)
+        print(vis.shape)
+        print(blured_mask.shape)
+        ants = cv2.bitwise_or(frame, red_image, mask = vis)
         ants = ants[0:rows, 0:cols]
         background = cv2.addWeighted(ants, alpha, overlay1, 1, 0)
-        
-        '''
-        cv2.imshow("frame", frame)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-        
-        cv2.imshow("mask", blured_mask)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-        
-        cv2.imshow("ants", ants)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-        
-
         cv2.imshow("background", background)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
         '''
-        
+        bb = frame.copy()
+        for c in new_contours:
+            rect = cv2.boundingRect(c)
+            x,y,w,h = rect
+            cv2.rectangle(bb,(x,y),(x+w,y+h),(255,0,0),2)
+          
+        '''
+        cv2.imshow("frame", frame)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        '''
         #save
         cv2.imwrite(orig_file, frame)
-        cv2.imwrite(filename, background)
-        
-        #alpha = 0.4
-        #overlay1 = frame.copy()
-        #image_new1 = cv2.addWeighted(diff_1_c, alpha, frame, 1 - alpha, 0)
-        #image_new2 = cv2.addWeighted(diff_2_c, alpha, image_new1, 1 - alpha, 0)
-        #diff = cv2.bitwise_or(diff_1, diff_2)
-        #percentiles1 = np.percentile(diff_1, [0, 25, 75, 100])
-        #percentiles2 = np.percentile(diff_2, [0, 25, 75, 100])
-        #targets = np.geomspace(10, 255, 4)
-        #b = np.interp(diff_1, percentiles1, targets).astype(np.uint8)
-        #g = gray_curr_frame #np.zeros_like(diff_1)
-        #r = np.interp(diff_2, percentiles2, targets[::-1]).astype(np.uint8)
-        
-        
-        #b = np.maximum(gray_curr_frame, np.interp(diff_1, percentiles1, targets).astype(np.uint8))
-        #g = gray_curr_frame
-        #r = np.maximum(gray_curr_frame, np.interp(diff_2, percentiles2, targets[::-1]).astype(np.uint8))
-        
-        #result = cv2.merge([b, g, r])
-        #cv2.imshow("diff", result)
-        #cv2.waitKey(0)
-        #cv2.destroyAllWindows()
-        
-        # set 3 chanels
-        #new_image[:, :, 0] = gray_curr_frame #B
-        #new_image[:, :, 1] = np.maximum(gray_curr_frame, diff_1) #G
-        #new_image[:, :, 2] = np.maximum(gray_curr_frame, diff_2) #R
-        
-        #save new_image
-        #cv2.imwrite(filename, new_image)
+        cv2.imwrite(filename, bb)
+
         print(f"Generated {i+1}/{NUM_FRAMES_IN_DATA} frames")
     
-    
+def check_deleted():
+    new_dir = '/windows/d/ant_detection/compute_files/Aljona_Pospelova/Прессилябрис интенсивность/dataset1/frames'
+    diff_path = '/windows/d/ant_detection/compute_files/Aljona_Pospelova/Прессилябрис интенсивность/dataset1/diff'
+    orig_path = '/windows/d/ant_detection/compute_files/Aljona_Pospelova/Прессилябрис интенсивность/dataset1/orig'
+    for f in os.scandir(diff_path):
+        if f.is_file() and f.path.split('.')[-1].lower() == 'png':
+            filename = f.path[f.path.rfind('/')+1:]
+            number = filename[:filename.index('_')]
+            image = cv2.imread(orig_path + '/' + number + '_orig_image.png')
+            cv2.imwrite(new_dir + '/' + number + '_orig_image.png', image)
     
 if __name__ == "__main__":
     NUM_FRAMES_IN_DATA = 5
     video_path = ''
     saving_frame_path = ''
-
+    
+    '''
     parser = argparse.ArgumentParser()
-    parser.add_argument('video_path', nargs='?', default='/windows/d/ant_detection/compute_files/Aljona_Pospelova/Прессилябрис площадки 1-4/Площадка 3  .mp4', help="Specify the full path to video", type=str)
-    parser.add_argument('saving_path', nargs='?', default='/windows/d/ant_detection/compute_files/Aljona_Pospelova/Прессилябрис площадки 1-4/dataset3', help="Specify the full path to saving directory", type=str)
-    parser.add_argument('num_images', nargs='?', default=30, help="Specify the number of generated images", type=int)
+    parser.add_argument('video_path', nargs='?', default='/windows/d/ant_detection/compute_files/Aljona_Pospelova/Pratensis дороги 1 и 2/Intensivnost_1.mp4', help="Specify the full path to video", type=str)
+    parser.add_argument('saving_path', nargs='?', default='/windows/d/ant_detection/compute_files/Aljona_Pospelova/Pratensis дороги 1 и 2/dataset1', help="Specify the full path to saving directory", type=str)
+    parser.add_argument('num_images', nargs='?', default=200, help="Specify the number of generated images", type=int)
     args = parser.parse_args()
     
     NUM_FRAMES_IN_DATA = args.num_images
@@ -145,4 +155,5 @@ if __name__ == "__main__":
     saving_frame_path = args.saving_path
     
     generate_diff_image(NUM_FRAMES_IN_DATA, video_path, saving_frame_path)
-        
+    '''
+    check_deleted()
