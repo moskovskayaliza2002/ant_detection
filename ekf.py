@@ -38,11 +38,11 @@ class TrackState:
     Confirmed = 2
     Deleted = 3
     # number of hitting steps to become confirmed
-    Conf_steps = 25
+    Conf_steps = 30
     # number of no_update_steps to become deleted
     Unconf_steps = 10
     # number of no_update_steps to turn confirmed ants to deleted
-    Del_conf_steps = 25
+    Del_conf_steps = 30
     
     
 class AntEKF(ExtendedKalmanFilter):
@@ -425,8 +425,8 @@ class multiEKF(object):
             '''
             
             #УДАЛИ, ЭТО ДЛЯ ПРОВЕРКИ СОСТОЯНИЙ ТРЕКА
-            #for ekf in self.EKFS:
-            #    ekf.check_color()
+            for ekf in self.EKFS:
+                ekf.check_color()
             
         #возможное решение проблемы когда на первом кадре нет детекций
         elif new_values.size != 0:

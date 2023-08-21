@@ -23,10 +23,30 @@ MEKF = None
 R_diag = np.array([0.0028, 0.0014, 0.39]) #angle = 0.6257
 l = 0.00001
 
-Q = np.array([[0.002, 0, 0, 0, 0], 
-              [0, 0.002, 0, 0, 0],
-              [0, 0, 0.01, 0, 0],
-              [0, 0, 0, 0.0001, 0],
+
+#Модель “кусочного” белого шума
+'''
+Q = np.array([[0.001, 0, 0, 0.03, 0], 
+              [0.001, 0.001, 0, 0.03, 0],
+              [0, 0, 0, 0, 0],
+              [0.03, 0.03, 0, 1, 0],
+              [0, 0, 0, 0, 0]])
+'''
+
+#TODO:Модель непрерывного белого шума
+'''
+Q = np.array([[0, 0, 0, 0, 0], 
+              [0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0]])
+'''
+
+#Подобранная экспериментально 
+Q = np.array([[0.001, 0, 0, 0, 0], 
+              [0, 0.001, 0, 0, 0],
+              [0, 0, 0.08, 0, 0],
+              [0, 0, 0, 0.001, 0],
               [0, 0, 0, 0, 0.0001]])
 
 #Q_diag = np.array([l, l, l, l, l])
@@ -36,8 +56,48 @@ dt = 0.1
 #коэфф для махалонобиса
 #mh = 12
 #коэфф для временного порога
-mh = 1.85
+mh = 2
 P_limit = np.inf
+
+
+#read data from yolo7 detector
+def read_txt(path):
+    data = []
+    name, fps, weight, height = 0, 0, 0, 0
+    bb_one_frame, bs_one_frame, kp_one_frame = [], [], []
+    last_frame = 1
+    num_lines = 0
+    with open(path, 'r') as f:
+        num_lines = sum(1 for line in f)
+    print(num_lines)
+    with open(path, 'r') as f:
+        for i, s in enumerate(f):
+            if i == 0:
+                name = s[:-1]
+            elif i == 1:
+                fps = round(float(s[:-1]))
+            elif i == 2:
+                weight = int(s[:-1])
+            elif i == 3:
+                height = int(s[:-1])
+            else:
+                l = s[:-1].split(' ')
+                frame = int(l[0])
+                if last_frame != frame:
+                    data.append(OrderedDict({'frame': last_frame, 'bboxes': bb_one_frame, 'bboxes_scores': bs_one_frame, 'keypoints': kp_one_frame}))
+                    bb_one_frame, bs_one_frame, kp_one_frame = [], [], []
+                    last_frame = frame
+                num_ants = (len(l) - 1) // 9
+                bbox = list(filter(int, l[1:num_ants * 4 + 1]))
+                bbox_scores = list(filter(float, l[num_ants * 4 + 1: num_ants * 5 + 1]))
+                kps = list(filter(int, l[num_ants * 5 + 1:]))
+                bb_one_frame.append(bbox)
+                bs_one_frame.append(bbox_scores[0])
+                kp_one_frame.append(kps)
+                if i == num_lines - 1:
+                    data.append(OrderedDict({'frame': frame, 'bboxes': bb_one_frame, 'bboxes_scores': bs_one_frame, 'keypoints': kp_one_frame}))
+    d = OrderedDict({'name': name, 'FPS': fps, 'weight': weight, 'height': height, 'frames': data})
+    return d
 
 
 # Print iterations progress
@@ -249,9 +309,13 @@ if __name__ == '__main__':
     
     print("----------------Построение траекторий----------------")
     print(f"INFO: Loading data from {yaml_path}...")
-    ANT_DATA = read_yaml(yaml_path)    
+    if yaml_path[-3:] == 'txt':
+        ANT_DATA = read_txt(yaml_path)
+    else:
+        ANT_DATA = read_yaml(yaml_path)    
     #print(d.keys() for d in ANT_DATA['frames'])
-    dt = 1/ANT_DATA['FPS']
+    print(type(ANT_DATA['FPS']))
+    dt = 1/int(float(ANT_DATA['FPS']))
 
     print(f"INFO: Loading video {args.video_path}...")
     cap = cv2.VideoCapture(args.video_path)   

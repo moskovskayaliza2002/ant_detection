@@ -6,7 +6,47 @@ import yaml
 import argparse
 from collections import OrderedDict
 from universal_RCNN_test import read_yaml
+import os
 #moskovskaya_ed@rrcki.ru
+
+def read_txt(path):
+    data = []
+    name, fps, weight, height = 0, 0, 0, 0
+    bb_one_frame, bs_one_frame, kp_one_frame = [], [], []
+    last_frame = 1
+    num_lines = 0
+    with open(path, 'r') as f:
+        num_lines = sum(1 for line in f)
+    print(num_lines)
+    with open(path, 'r') as f:
+        for i, s in enumerate(f):
+            if i == 0:
+                name = s[:-1]
+            elif i == 1:
+                fps = s[:-1]
+            elif i == 2:
+                weight = s[:-1]
+            elif i == 3:
+                height = s[:-1]
+            else:
+                l = s[:-1].split(' ')
+                frame = int(l[0])
+                if last_frame != frame:
+                    data.append(OrderedDict({'frame': last_frame, 'bboxes': bb_one_frame, 'bboxes_scores': bs_one_frame, 'keypoints': kp_one_frame}))
+                    bb_one_frame, bs_one_frame, kp_one_frame = [], [], []
+                    last_frame = frame
+                num_ants = (len(l) - 1) // 9
+                bbox = list(map(int, l[1:num_ants * 4 + 1]))
+                bbox_scores = list(map(float, l[num_ants * 4 + 1: num_ants * 5 + 1]))
+                kps = list(map(int, l[num_ants * 5 + 1:]))
+                bb_one_frame.append(bbox)
+                bs_one_frame.append(bbox_scores[0])
+                kp_one_frame.append(kps)
+                if i == num_lines - 1:
+                    data.append(OrderedDict({'frame': frame, 'bboxes': bb_one_frame, 'bboxes_scores': bs_one_frame, 'keypoints': kp_one_frame}))
+    d = OrderedDict({'name': name, 'FPS': fps, 'weight': weight, 'height': height, 'frames': data})
+    return d
+
 
 def draw_circle_input(event, x, y, flags, param):
     global img
@@ -175,7 +215,11 @@ def find_points(im, video_path):
 def change_detections_to_real(detection_yaml, matrix_yaml):
     #Менятся порядок записи в файл, посмотри, как это влияет
     print(f"reading... {detection_yaml}")
-    ANT_DATA = read_yaml(detection_yaml)
+    if os.path.exists(pixel_path):
+        ANT_DATA = read_yaml(detection_yaml)
+    else:
+        txt_path = detection_yaml[:-3] + 'txt'
+        ANT_DATA = read_txt(txt_path)
     print("INFO: Данные считаны")
     matrix = read_matrix(matrix_yaml)
     print("INFO: Матрица считана")
