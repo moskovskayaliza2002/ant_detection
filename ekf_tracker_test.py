@@ -13,11 +13,12 @@ import gc
 from from_pixels_to_real_coords import read_matrix
 import math
 from filterpy.common import Q_continuous_white_noise
+from collections import OrderedDict
 
 ARROW_LEN = 50
 D_ANT_COLOR = 'w'
 D_ANT_SYM = 'o'
-ANT_SCORE_MIN = 0.9
+ANT_SCORE_MIN = 0.8
 MEKF = None
 #R_diag = np.array([1.22, 1.75, 0.39])
 R_diag = np.array([0.0028, 0.0014, 0.39]) #angle = 0.6257
@@ -69,7 +70,7 @@ def read_txt(path):
     num_lines = 0
     with open(path, 'r') as f:
         num_lines = sum(1 for line in f)
-    print(num_lines)
+    print(f"lines {num_lines}")
     with open(path, 'r') as f:
         for i, s in enumerate(f):
             if i == 0:
@@ -77,9 +78,9 @@ def read_txt(path):
             elif i == 1:
                 fps = round(float(s[:-1]))
             elif i == 2:
-                weight = int(s[:-1])
+                weight = int(float(s[:-1]))
             elif i == 3:
-                height = int(s[:-1])
+                height = int(float(s[:-1]))
             else:
                 l = s[:-1].split(' ')
                 frame = int(l[0])
@@ -88,12 +89,12 @@ def read_txt(path):
                     bb_one_frame, bs_one_frame, kp_one_frame = [], [], []
                     last_frame = frame
                 num_ants = (len(l) - 1) // 9
-                bbox = list(filter(int, l[1:num_ants * 4 + 1]))
-                bbox_scores = list(filter(float, l[num_ants * 4 + 1: num_ants * 5 + 1]))
-                kps = list(filter(int, l[num_ants * 5 + 1:]))
+                bbox = list(map(int, l[1:num_ants * 4 + 1]))
+                bbox_scores = list(map(float, l[num_ants * 4 + 1: num_ants * 5 + 1]))
+                kps = list(map(int, l[num_ants * 5 + 1:]))
                 bb_one_frame.append(bbox)
                 bs_one_frame.append(bbox_scores[0])
-                kp_one_frame.append(kps)
+                kp_one_frame.append([[kps[0], kps[1]],[kps[2], kps[3]]])
                 if i == num_lines - 1:
                     data.append(OrderedDict({'frame': frame, 'bboxes': bb_one_frame, 'bboxes_scores': bs_one_frame, 'keypoints': kp_one_frame}))
     d = OrderedDict({'name': name, 'FPS': fps, 'weight': weight, 'height': height, 'frames': data})
@@ -314,7 +315,6 @@ if __name__ == '__main__':
     else:
         ANT_DATA = read_yaml(yaml_path)    
     #print(d.keys() for d in ANT_DATA['frames'])
-    print(type(ANT_DATA['FPS']))
     dt = 1/int(float(ANT_DATA['FPS']))
 
     print(f"INFO: Loading video {args.video_path}...")
@@ -359,7 +359,7 @@ if __name__ == '__main__':
         h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         size = (int(w), int(h))
         out = cv2.VideoWriter(new_filename, fourcc, fps, size, True)
-        for frame in ANT_DATA['frames']:
+        for count, frame in enumerate(ANT_DATA['frames']):
             #if count % 1000 == 0:
             #    print('Frame:', count, '/', maxim_frames)
             printProgressBar(count, maxim_frames, prefix = 'Progress:', suffix = 'of frames processed', length = 50)
@@ -368,7 +368,6 @@ if __name__ == '__main__':
             #cv2.imshow('image', frame_v)
             #cv2.waitKey(0)
             out.write(pred_im)
-            count += 1
         out.release()
         cap.release()
     else:

@@ -15,6 +15,7 @@ def read_txt(path):
     bb_one_frame, bs_one_frame, kp_one_frame = [], [], []
     last_frame = 1
     num_lines = 0
+    all_frames = []
     with open(path, 'r') as f:
         num_lines = sum(1 for line in f)
     print(num_lines)
@@ -23,27 +24,31 @@ def read_txt(path):
             if i == 0:
                 name = s[:-1]
             elif i == 1:
-                fps = s[:-1]
+                fps = round(float(s[:-1]))
             elif i == 2:
-                weight = s[:-1]
+                weight = int(float(s[:-1]))
             elif i == 3:
-                height = s[:-1]
+                height = int(float(s[:-1]))
             else:
                 l = s[:-1].split(' ')
                 frame = int(l[0])
+                all_frames.append(frame)
                 if last_frame != frame:
                     data.append(OrderedDict({'frame': last_frame, 'bboxes': bb_one_frame, 'bboxes_scores': bs_one_frame, 'keypoints': kp_one_frame}))
                     bb_one_frame, bs_one_frame, kp_one_frame = [], [], []
                     last_frame = frame
-                num_ants = (len(l) - 1) // 9
-                bbox = list(map(int, l[1:num_ants * 4 + 1]))
-                bbox_scores = list(map(float, l[num_ants * 4 + 1: num_ants * 5 + 1]))
-                kps = list(map(int, l[num_ants * 5 + 1:]))
+                if len(l) > 1:
+                    bbox = list(map(int, l[1:5]))
+                    bbox_scores = float(l[5])
+                    kps = list(map(int, l[6:]))
+                else:
+                    kps, bbox, bbox_scores = [], [], 0
                 bb_one_frame.append(bbox)
-                bs_one_frame.append(bbox_scores[0])
+                bs_one_frame.append(bbox_scores)
                 kp_one_frame.append(kps)
                 if i == num_lines - 1:
                     data.append(OrderedDict({'frame': frame, 'bboxes': bb_one_frame, 'bboxes_scores': bs_one_frame, 'keypoints': kp_one_frame}))
+    print("ВСЕГО ЗАПИСЕЙ: ", len(set(all_frames)))
     d = OrderedDict({'name': name, 'FPS': fps, 'weight': weight, 'height': height, 'frames': data})
     return d
 
