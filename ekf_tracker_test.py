@@ -18,7 +18,7 @@ from collections import OrderedDict
 ARROW_LEN = 50
 D_ANT_COLOR = 'w'
 D_ANT_SYM = 'o'
-ANT_SCORE_MIN = 0.8
+#ANT_SCORE_MIN = 0.7
 MEKF = None
 #R_diag = np.array([1.22, 1.75, 0.39])
 R_diag = np.array([0.0028, 0.0014, 0.39]) #angle = 0.6257
@@ -289,12 +289,14 @@ if __name__ == '__main__':
     '''
     parser.add_argument('--yaml_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/full_video/{file_}_real_coords.yml', help="Full path to yaml-file with ant data", type=str)
     parser.add_argument('--video_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/full_video/{file_}.mp4', help="Full path to video file", type=str)
+    parser.add_argument('--min_score', nargs='?', default=0.8, help="the minimum value to consider that it is an ant", type=float)
     #parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/another_full_video/{file_}_tracks.txt', help="Full path to directory to save trackes in yaml", type=str)
     parser.add_argument('--visualisation', nargs='?', default=True, help="Make visualization or file with tracks only", type=bool)
     args = parser.parse_args()
     yaml_path = args.yaml_path
     video_path = args.video_path
     
+    ANT_SCORE_MIN = args.min_score
     sec_start = time.time()
     struct_start = time.localtime(sec_start)
     start_time = time.strftime('%d.%m.%Y %H:%M', struct_start)

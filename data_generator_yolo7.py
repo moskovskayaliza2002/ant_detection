@@ -91,16 +91,36 @@ def convert_to_str(bbs, kps, filename):
         str_kps = str(x_h) + ' ' + str(y_h) + ' ' + str(2) + ' ' + str(x_a) + ' ' + str(y_a) + ' ' + str(2)
         full_str += str_bbox + ' '
         full_str += str_kps + '\n'
+        chech_convert(bbs[i], [x_center, y_center, width, height], kps[i], [x_h, y_h, x_a, y_a])
         str_list.append(full_str)
     with open(filename, 'w') as file:
         file.writelines(str_list)
         file.close()
     
+def chech_convert(orig_bb, pred_bb, orig_kps, pred_kps):
+    print(f"Оригинальный бокс: {orig_bb}")
+    x_center = int((((pred_bb[0] - 0) * 1920) / 1) + 0)
+    y_center = int((((pred_bb[1] - 0) * 1080) / 1) + 0)
+    width = int((((pred_bb[2] - 0) * 1920) / 1) + 0)
+    height = int((((pred_bb[3] - 0) * 1080) / 1) + 0)
+    xmin = x_center - width//2
+    ymin = y_center - height//2
+    xmax = x_center + width//2
+    ymax = y_center + height//2
+    print(f"Сконвертированный бокс: {[xmin, ymin, xmax, ymax]}")
+    print(f"Оригинальные точки: {orig_kps}")
+    x_h = int((((pred_kps[0] - 0) * 1920) / 1) + 0)
+    y_h = int((((pred_kps[1] - 0) * 1080) / 1) + 0)
+    x_a = int((((pred_kps[2] - 0) * 1920) / 1) + 0)
+    y_a = int((((pred_kps[3] - 0) * 1080) / 1) + 0)
+    
+    print(f"Сконвертированные точки: {[x_h, y_h, x_a, y_a]}")
+    
         
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset_path', nargs='?', default='/home/ubuntu/ant_detection/dataset', help="Specify the full path to dataset to convert to yolo type", type=str)
-    parser.add_argument('yolo_dataset_path', nargs='?', default='/home/ubuntu/ant_detection/yolo_dataset', help="Specify the full path to directory to store ", type=str)
+    parser.add_argument('--dataset_path', nargs='?', default='/home/ubuntu/ant_detection/dataset', help="Specify the full path to dataset to convert to yolo type", type=str)
+    parser.add_argument('--yolo_dataset_path', nargs='?', default='/home/ubuntu/ant_detection/yolo_dataset', help="Specify the full path to directory to store ", type=str)
     args = parser.parse_args()
     
     create(args.dataset_path + '/Train_data_not_cropped', args.yolo_dataset_path + '/images/train', args.yolo_dataset_path + '/labels/train')
