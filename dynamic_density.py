@@ -17,11 +17,15 @@ def read_tracks_from_txt(path):
     with open(path) as f:
         for i in f:
             dic = {}
-            a = list(map(float, i[:-2].split(' ')))
-            no = a[0]
-            frame_ind = a[1]
-            a = np.array(a[2:]).reshape((-1, 5)).tolist()
-            dic[frame_ind] = a
+            #a = list(map(float, i[:-2].split(' ')))
+            a = i[:-2].split(' ')
+            no = int(a[0])
+            frame_ind = int(a[1])
+            ind = int(a[2])
+            color = a[3]
+            track = [float(i) for i in a[4:]]
+            track = np.array(track).reshape((-1, 5)).tolist()
+            dic[frame_ind] = track
             tracks.append(dic)
     return tracks
     
@@ -363,7 +367,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     name = args.input_video_path[args.input_video_path.rfind('/')+1:args.input_video_path.rfind('.')]
-    matrix_path = args.input_video_path[:args.input_video_path.rfind('/')] + '/' + name + '_matrix.yml'
+    matrix_path = args.input_video_path[:args.input_video_path.rfind('/')] + '/' + name + '_real_coords_matrix.yml'
     #path = '/home/ubuntu/ant_detection/dynamic_density/'
     draw_graficks(count_all_minutas(args.coord_yaml, matrix_path, args.tracks_path, args.input_video_path), args.csv_path, name)
     
