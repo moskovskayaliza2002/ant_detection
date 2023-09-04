@@ -425,8 +425,8 @@ class multiEKF(object):
             '''
             
             #УДАЛИ, ЭТО ДЛЯ ПРОВЕРКИ СОСТОЯНИЙ ТРЕКА
-            for ekf in self.EKFS:
-                ekf.check_color()
+            #for ekf in self.EKFS:
+            #    ekf.check_color()
             
         #возможное решение проблемы когда на первом кадре нет детекций
         elif new_values.size != 0:

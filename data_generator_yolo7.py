@@ -82,16 +82,16 @@ def convert_to_str(bbs, kps, filename):
     for i in range(len(bbs)):
         full_str = '0 '
         xmin, ymin, xmax, ymax = conv_x(bbs[i][0]), conv_y(bbs[i][1]), conv_x(bbs[i][2]), conv_y(bbs[i][3])
-        x_h, y_h, x_a, y_a = conv_x(kps[i][0]), conv_y(kps[i][1]), conv_x(kps[i][2]), conv_y(kps[i][3])
+        x_a, y_a, x_h, y_h = conv_x(kps[i][0]), conv_y(kps[i][1]), conv_x(kps[i][2]), conv_y(kps[i][3])
         x_center = (xmin + xmax) / 2
         y_center = (ymin + ymax) / 2
         width = xmax - xmin
         height = ymax - ymin
         str_bbox = str(x_center) + ' ' + str(y_center) + ' ' + str(width) + ' ' + str(height)
-        str_kps = str(x_h) + ' ' + str(y_h) + ' ' + str(2) + ' ' + str(x_a) + ' ' + str(y_a) + ' ' + str(2)
+        str_kps = str(x_a) + ' ' + str(y_a) + ' ' + str(2) + ' ' + str(x_h) + ' ' + str(y_h) + ' ' + str(2)
         full_str += str_bbox + ' '
         full_str += str_kps + '\n'
-        chech_convert(bbs[i], [x_center, y_center, width, height], kps[i], [x_h, y_h, x_a, y_a])
+        chech_convert(bbs[i], [x_center, y_center, width, height], kps[i], [x_a, y_a, x_h, y_h])
         str_list.append(full_str)
     with open(filename, 'w') as file:
         file.writelines(str_list)
@@ -109,12 +109,12 @@ def chech_convert(orig_bb, pred_bb, orig_kps, pred_kps):
     ymax = y_center + height//2
     print(f"Сконвертированный бокс: {[xmin, ymin, xmax, ymax]}")
     print(f"Оригинальные точки: {orig_kps}")
-    x_h = int((((pred_kps[0] - 0) * 1920) / 1) + 0)
-    y_h = int((((pred_kps[1] - 0) * 1080) / 1) + 0)
-    x_a = int((((pred_kps[2] - 0) * 1920) / 1) + 0)
-    y_a = int((((pred_kps[3] - 0) * 1080) / 1) + 0)
+    x_a = int((((pred_kps[0] - 0) * 1920) / 1) + 0)
+    y_a = int((((pred_kps[1] - 0) * 1080) / 1) + 0)
+    x_h = int((((pred_kps[2] - 0) * 1920) / 1) + 0)
+    y_h = int((((pred_kps[3] - 0) * 1080) / 1) + 0)
     
-    print(f"Сконвертированные точки: {[x_h, y_h, x_a, y_a]}")
+    print(f"Сконвертированные точки: {[x_a, y_a, x_h, y_h]}")
     
         
 if __name__ == '__main__':

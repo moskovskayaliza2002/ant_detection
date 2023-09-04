@@ -112,9 +112,9 @@ def read_coords_yaml(yaml_path):
     
     
 def correlate_points(video_path, num_points, yaml_path):
-    cap = cv2.VideoCapture(args.video_path)
+    cap = cv2.VideoCapture(video_path)
     while not cap.isOpened():
-        cap = cv2.VideoCapture(args.video_path)
+        cap = cv2.VideoCapture(video_path)
         cv2.waitKey(1000)
         print("Openning the file...")
     
@@ -132,13 +132,13 @@ def correlate_points(video_path, num_points, yaml_path):
         cv2.namedWindow('src', cv2.WINDOW_NORMAL)
         cv2.setMouseCallback('src',draw_circle_input)
         exit_flag = True
-        while(len(pix_coords) != args.num_points):
+        while(len(pix_coords) != num_points):
             cv2.imshow('src',img)
             if cv2.waitKey (100) == ord ('q'): # Нажмите q, чтобы выйти
                 break
             #cv2.imshow('src',img)
         cv2.destroyAllWindows()
-    if len(pix_coords) == args.num_points:
+    if len(pix_coords) == num_points:
         print("/-----------------------------------------------------------------------/")
         print("INFO: Нажмите Esс чтобы не сохранять координаты и Enter чтобы сохранить")
         print("/-----------------------------------------------------------------------/")
@@ -150,7 +150,7 @@ def correlate_points(video_path, num_points, yaml_path):
                 print("_______УДАЛЕНО_______")
                 break
             if next_step == 13:
-                save_coords_to_yaml(yaml_path, pix_coords, real_coords, args.video_path)
+                save_coords_to_yaml(yaml_path, pix_coords, real_coords, video_path)
                 print("_______СОХРАНЕНО_______")
                 break
         cv2.destroyAllWindows()
@@ -192,6 +192,7 @@ def find_points(im, video_path):
     matrix = find_matrix(coords)
 
     name = video_path[video_path.rfind('/'):video_path.rfind('.')]
+    print(name)
     matrix_path = video_path[:video_path.rfind('/')] + name + '_matrix.yml'
     #path = yaml_path[:yaml_path.rfind('/')] + name + '_matrix.yml'
     save_matrix(matrix_path, matrix)
@@ -270,7 +271,7 @@ if __name__ == '__main__':
         yaml_path = args.video_path[:args.video_path.rfind('/')] + args.video_path[args.video_path.rfind('/'):args.video_path.rfind('.')] + "_real_coords.yml"
         print("INFO: двойной клик левой кнопкой мыши поставит точку, двойной клик колесика отменит последнюю нарисованную точку")
         img = correlate_points(args.video_path, args.num_points, yaml_path)
-        find_points(img, yaml_path)
+        find_points(img, args.video_path)
     
     elif args.action == 'T':
         name = args.video_path[args.video_path.rfind('/'):args.video_path.rfind('.')]

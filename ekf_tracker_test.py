@@ -303,7 +303,7 @@ if __name__ == '__main__':
     
     name = video_path[video_path.rfind('/'):video_path.rfind('.')]
     tracks_save_path = video_path[:video_path.rfind('/')] + name + '_tracks' + '.txt'
-    path_to_matrix = video_path[:video_path.rfind('/')] + name + "_real_coords_matrix.yml"
+    path_to_matrix = video_path[:video_path.rfind('/')] + name + "_matrix.yml"
     print(f"INFO: matrix read at {path_to_matrix}")
     print(f"INFO: tracks saving path: {tracks_save_path}")
     matrix = read_matrix(path_to_matrix)
