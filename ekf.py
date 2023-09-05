@@ -219,10 +219,10 @@ class multiEKF(object):
     mahalanobis_thres - mahalanobis disnace at which count ants the same
     P_limit - limitation for covariance, if it is higher - remove that filter
     '''
-    def __init__(self, start_values, R_diag, Q, dt, mahalanobis_thres, P_limit, xlim, ylim, frame_ind, inv_matrix):
+    def __init__(self, start_values, R_diag, Q, dt, mahalanobis_thres, P_limit, xlim, ylim, frame_ind, inv_matrix, check_status):
         
         self.mahalanobis_thres = mahalanobis_thres
-        
+        self.check_status = check_status
         self.R_diag = R_diag
         self.Q = Q
         #self.Q_diag = Q_diag
@@ -423,10 +423,10 @@ class multiEKF(object):
                     self.deleted_ants_error.append(err)
                 del self.EKFS[index]
             '''
-            
-            #УДАЛИ, ЭТО ДЛЯ ПРОВЕРКИ СОСТОЯНИЙ ТРЕКА
-            #for ekf in self.EKFS:
-            #    ekf.check_color()
+            #ЭТО ДЛЯ ПРОВЕРКИ СОСТОЯНИЙ ТРЕКА
+            if self.check_status:
+                for ekf in self.EKFS:
+                    ekf.check_color()
             
         #возможное решение проблемы когда на первом кадре нет детекций
         elif new_values.size != 0:
@@ -549,7 +549,7 @@ class multiEKF(object):
     def write_tracks(self, txt_name):
         counter = 0
         with open(txt_name, "w") as file:
-            print(f'всего треков {len(self.EKFS)} + {self.deleted_conf_ants.shape[0]}')
+            #print(f'всего треков {len(self.EKFS)} + {self.deleted_conf_ants.shape[0]}')
             for ekf in self.EKFS:
                 if ekf.is_confirmed():
                     r = ekf.color[0]
@@ -583,7 +583,7 @@ class multiEKF(object):
                         s2 += ' '.join(map(str, i)) + ' '
                 file.write(s1 + s2 + '\n')
                 counter += 1
-        print(f'всего подтвержденных треков {counter}')
+        print(f'INFO: всего подтвержденных треков {counter}')
     '''
     def write_tracks(self, yml_filename):      
         with open(yml_filename, 'a') as f:

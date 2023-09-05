@@ -34,7 +34,6 @@ def read_coords_yaml(yaml_path, matrix_path):
     with open(yaml_path) as f:
         yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
         datas = list(yaml.safe_load_all(f))
-        print(datas[0]['coordinates'])
         #return datas[0]['coordinates']
     coords = np.array([datas[0]['coordinates']], dtype='float32')
     matrix = read_matrix(matrix_path)
@@ -257,7 +256,7 @@ def counter_per_min(tracks, area):
     return NUM_ANTS
 
 
-def draw_graficks(density, csv_path, name):
+def draw_graficks(density, csv_path, name, path):
     if csv_path == "":
         plt.title("Динамическая плотность") # заголовок
         plt.xlabel("Номер минуты") # ось абсцисс
@@ -265,7 +264,7 @@ def draw_graficks(density, csv_path, name):
         plt.grid() # включение отображение сетки
         plt.plot(range(len(density)), density, linestyle = '--', color='r',linewidth = 3, label='Автоматический подсчет')
         plt.legend(loc = 'best')
-        plt.show()
+        plt.savefig(path)
     else:
         #сделай функцию считывания cvc файла
         real_data, real_data_tracks, density_truth = read_cvc(csv_path, name)
@@ -282,8 +281,7 @@ def draw_graficks(density, csv_path, name):
         plt.plot(range(len(density_truth)), density_truth, color='black',  linewidth = 3, linestyle = ':', label='Проверка')
         
         plt.legend(loc = 'best')
-        plt.show()
-        #plt.savefig(path + '/density.png')
+        plt.savefig(path)
     
 def presicion(real_data, pred_data):
     gt = np.array(real_data)
@@ -361,20 +359,23 @@ if __name__ == '__main__':
     #parser.add_argument('csv_path', nargs='?', default="/home/ubuntu/ant_detection/problems/dynamic_density.xlsx", help="Specify path to gt data", type=str)
     parser.add_argument('--csv_path', nargs='?', default="", help="Specify path to gt data", type=str)
     
+    print('**********************НАЧАЛО РАСЧЕТА ДИНАМИЧЕСКОЙ ПЛОТНОСТИ*******************')
     sec_start = time.time()
     struct_start = time.localtime(sec_start)
     start_time = time.strftime('%d.%m.%Y %H:%M', struct_start)
     
+    saving_grafic_path = args.input_video_path[:args.input_video_path.rfind('/')+1] + 'dynamic_density.png'
     args = parser.parse_args()
     name = args.input_video_path[args.input_video_path.rfind('/')+1:args.input_video_path.rfind('.')]
     matrix_path = args.input_video_path[:args.input_video_path.rfind('/')] + '/' + name + '_real_coords_matrix.yml'
     #path = '/home/ubuntu/ant_detection/dynamic_density/'
-    draw_graficks(count_all_minutas(args.coord_yaml, matrix_path, args.tracks_path, args.input_video_path), args.csv_path, name)
+    draw_graficks(count_all_minutas(args.coord_yaml, matrix_path, args.tracks_path, args.input_video_path), args.csv_path, name, saving_grafic_path)
     
     sec_finish = time.time()
     struct_finish = time.localtime(sec_finish)
     finish_time = time.strftime('%d.%m.%Y %H:%M', struct_finish)
     print(f'Started {start_time} Finished {finish_time}')
     
+    print('**********************КОНЕЦ РАСЧЕТА ДИНАМИЧЕСКОЙ ПЛОТНОСТИ********************')
     #read_cvc("/home/ubuntu/ant_detection/dynamic_density/18.08.20 Fp2' плос2.xlsx")
     

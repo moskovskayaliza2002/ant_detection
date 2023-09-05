@@ -144,6 +144,7 @@ if __name__ == '__main__':
     matrix_path = args.video_path[:args.video_path.rfind('/')] + '/' + filename + '_real_coords_matrix.yml'
     tracks_path = args.video_path[:args.video_path.rfind('/')] + '/' + filename + '_tracks.txt'
     
+    print('***********************ОПРЕДЕЛЕНИЕ ИНТЕНСИВНОСТИ ДВИЖЕНИЯ*********************')
     matrix = read_matrix(matrix_path)
     matrix = np.array(matrix, dtype=np.float32)
     pix_points, durationInMinutes = get_line_coords(args.video_path)
@@ -158,9 +159,4 @@ if __name__ == '__main__':
         all_crosses += len(short_way) - 1
     
     print(f'Интенсивность движения на дороге составила {all_crosses} муравьев за {durationInMinutes} минут')
-    
-    
-        
-        
-        
-    
+    print('********************КОНЕЦ ОПРЕДЕЛЕНИЯ ИНТЕНСИВНОСТИ ДВИЖЕНИЯ******************')

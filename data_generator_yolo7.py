@@ -44,8 +44,8 @@ def find_kp(num, root_path):
 def conv_x(old):
     # Переводит координату х в новую систему координат
     old_min = new_min = 0
-    old_range = 1920 - 0 
-    new_range = 1 - 0 # 1920 - 0
+    old_range = 224 - 0 #1920 - 0
+    new_range = 1 - 0 #
     
     converted = (((old - old_min) * new_range) / old_range) + new_min
     return converted
@@ -54,8 +54,8 @@ def conv_x(old):
 def conv_y(old):
     # Переводит координату у в новую систему координат
     old_min = new_min = 0
-    old_range = 1080 - 0  
-    new_range = 1 - 0 # 1080 - 0
+    old_range = 224 - 0 # 1080 - 0 
+    new_range = 1 - 0
     
     converted = (((old - old_min) * new_range) / old_range) + new_min
     return converted
@@ -63,7 +63,7 @@ def conv_y(old):
 
 def create(dataset_path, yolo_images, yolo_labels):
     image_path = dataset_path + "/images"
-    counter = 1
+    counter = 481
     for f in os.scandir(image_path):
         if f.is_file() and f.path.split('.')[-1].lower() == 'png':
             filename = f.path[f.path.rfind('/')+1:]
@@ -91,7 +91,7 @@ def convert_to_str(bbs, kps, filename):
         str_kps = str(x_a) + ' ' + str(y_a) + ' ' + str(2) + ' ' + str(x_h) + ' ' + str(y_h) + ' ' + str(2)
         full_str += str_bbox + ' '
         full_str += str_kps + '\n'
-        chech_convert(bbs[i], [x_center, y_center, width, height], kps[i], [x_a, y_a, x_h, y_h])
+        #chech_convert(bbs[i], [x_center, y_center, width, height], kps[i], [x_a, y_a, x_h, y_h])
         str_list.append(full_str)
     with open(filename, 'w') as file:
         file.writelines(str_list)
@@ -119,12 +119,13 @@ def chech_convert(orig_bb, pred_bb, orig_kps, pred_kps):
         
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_path', nargs='?', default='/home/ubuntu/ant_detection/dataset', help="Specify the full path to dataset to convert to yolo type", type=str)
-    parser.add_argument('--yolo_dataset_path', nargs='?', default='/home/ubuntu/ant_detection/yolo_dataset', help="Specify the full path to directory to store ", type=str)
+    parser.add_argument('--dataset_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset', help="Specify the full path to dataset to convert to yolo type", type=str)
+    parser.add_argument('--yolo_dataset_path', nargs='?', default='/home/ubuntu/ant_detection/yolo_aug', help="Specify the full path to directory to store ", type=str)
     args = parser.parse_args()
     
-    create(args.dataset_path + '/Train_data_not_cropped', args.yolo_dataset_path + '/images/train', args.yolo_dataset_path + '/labels/train')
-    create(args.dataset_path + '/Test_data_not_cropped', args.yolo_dataset_path + '/images/val', args.yolo_dataset_path + '/labels/val')
+    #create(args.dataset_path + '/Train_data_not_cropped', args.yolo_dataset_path + '/images/train', args.yolo_dataset_path + '/labels/train')
+    create(args.dataset_path + '/Train_data_with_aug/augmentation', args.yolo_dataset_path + '/images/train', args.yolo_dataset_path + '/labels/train')
+    #create(args.dataset_path + '/Test_data_not_cropped', args.yolo_dataset_path + '/images/val', args.yolo_dataset_path + '/labels/val')
             
 # перебрать все изображения в папке
 # для каждого из них считать боксы и точки

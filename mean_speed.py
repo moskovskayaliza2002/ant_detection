@@ -207,8 +207,8 @@ def count_mean_speed(track_path):
     add_colors(sort_df['Цвет'].to_list(), track_path)
     gist_path = get_pathes(track_path, 'G')
     #plot_gist(d_mean_ants, d_mean_steps, d_ns_mean_ants, d_ns_mean_steps, gist_path)
-    if mean_speed:
-        print(f"Средняя скорость по Калману: {sum(mean_speed)/len(mean_speed)} м/c")
+    #if mean_speed:
+    #    print(f"Средняя скорость по Калману: {sum(mean_speed)/len(mean_speed)} м/c")
     print(f"Средняя скорость по дистанции: {sum(d_ns_mean_ants)/len(d_ns_mean_ants)} м/c")
 
 
@@ -218,4 +218,6 @@ if __name__ == '__main__':
     parser.add_argument('--tracks_path', nargs='?', default="/home/ubuntu/ant_detection/problems/full_video/18.08.20_Fp2_плос2_tracks.txt", help="Specify yaml track path", type=str)
     args = parser.parse_args()
     
+    print('**********************НАЧАЛО ОПРЕДЕЛЕНИЯ СРЕДНИХ СКОРОСТЕЙ********************')
     count_mean_speed(args.tracks_path)
+    print('***********************КОНЕЦ ОПРЕДЕЛЕНИЯ СРЕДНИХ СКОРОСТЕЙ********************')

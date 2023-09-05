@@ -18,7 +18,6 @@ def read_txt(path):
     all_frames = []
     with open(path, 'r') as f:
         num_lines = sum(1 for line in f)
-    print(num_lines)
     with open(path, 'r') as f:
         for i, s in enumerate(f):
             if i == 0:
@@ -48,7 +47,6 @@ def read_txt(path):
                 kp_one_frame.append(kps)
                 if i == num_lines - 1:
                     data.append(OrderedDict({'frame': frame, 'bboxes': bb_one_frame, 'bboxes_scores': bs_one_frame, 'keypoints': kp_one_frame}))
-    print("ВСЕГО ЗАПИСЕЙ: ", len(set(all_frames)))
     d = OrderedDict({'name': name, 'FPS': fps, 'weight': weight, 'height': height, 'frames': data})
     return d
 
@@ -177,7 +175,6 @@ def find_matrix(coords):
 
 def save_matrix(yaml_path, matrix):
     matrix = matrix.tolist()
-    print(matrix)
     with open(yaml_path, 'w') as f:
         yaml.dump({'matrix': matrix}, f)
         
@@ -192,11 +189,9 @@ def find_points(im, video_path):
     matrix = find_matrix(coords)
 
     name = video_path[video_path.rfind('/'):video_path.rfind('.')]
-    print(name)
     matrix_path = video_path[:video_path.rfind('/')] + name + '_matrix.yml'
     #path = yaml_path[:yaml_path.rfind('/')] + name + '_matrix.yml'
     save_matrix(matrix_path, matrix)
-    print(matrix_path)
     print("INFO: Матрица сохранена")
     global img  
     global cache  
@@ -220,7 +215,6 @@ def find_points(im, video_path):
         
 def change_detections_to_real(detection_yaml, matrix_yaml):
     #Менятся порядок записи в файл, посмотри, как это влияет
-    print(f"reading... {detection_yaml}")
     if os.path.exists(pixel_path):
         ANT_DATA = read_yaml(detection_yaml)
     else:
@@ -248,12 +242,10 @@ def change_detections_to_real(detection_yaml, matrix_yaml):
     print("INFO: Преобразования закончены")
     name = detection_yaml[detection_yaml.rfind('/'):detection_yaml.rfind('.')]
     new_detection_yaml = detection_yaml[:detection_yaml.rfind('/')] + name + '_real_coords' + '.yml'
-    print(new_detection_yaml)
     with open(new_detection_yaml, 'w') as f:
         #data = yaml.dump({'name': filename}, f)
         yaml.add_representer(OrderedDict, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
         yaml.dump(OrderedDict({'name': ANT_DATA['name'], 'FPS': ANT_DATA['FPS'], 'weight': ANT_DATA['weight'], 'height': ANT_DATA['height']}), f)
-        print(type(ANT_DATA['frames']))
         data = OrderedDict({"frames":ANT_DATA['frames']})
         yaml.dump(data, f)
     print(f"INFO: Данные сохранены в файл: {new_detection_yaml}")
@@ -274,9 +266,11 @@ if __name__ == '__main__':
         find_points(img, args.video_path)
     
     elif args.action == 'T':
+        print('***************************ПРЕОБРАЗОВАНИЕ КООРДИНАТ***************************')
         name = args.video_path[args.video_path.rfind('/'):args.video_path.rfind('.')]
         pixel_path = args.video_path[:args.video_path.rfind('/')] + name + '.yml'
         matrix_path = args.video_path[:args.video_path.rfind('/')] + name + '_matrix.yml'
         change_detections_to_real(pixel_path, matrix_path)
+        print('*****************************КОНЕЦ ПРЕОБРАЗОВАНИЯ*****************************')
     else:
         print("Нет такого параметра запуска")

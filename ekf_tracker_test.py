@@ -124,12 +124,12 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
         print()
 
 # Функция обработки фрейма, для сохранения
-def proceed_frame_cv2(frame, frame_v, W, H, dt, inv_matrix):
+def proceed_frame_cv2(frame, frame_v, W, H, dt, inv_matrix, check_status):
     global MEKF
     ants = get_ants(frame, dt)
     image = plot_ants_cv2(frame_v, ants)
     if MEKF is None:
-        MEKF = multiEKF(ants, R_diag, Q, dt, mh, P_limit, W, H, int(frame['frame']), inv_matrix)
+        MEKF = multiEKF(ants, R_diag, Q, dt, mh, P_limit, W, H, int(frame['frame']), inv_matrix, check_status)
     else:
         MEKF.proceed(ants, dt, int(frame['frame']))
     #print("Траекторий построилось: ", len(MEKF.EKFS))
@@ -145,7 +145,7 @@ def proceed_frame(frame, W, H, ax, dt):
     plot_ants(ax, ants, H, dt)
     
     if MEKF is None:
-        MEKF = multiEKF(ants, R_diag,  Q, dt, mh, P_limit, W, H, int(frame['frame']))
+        MEKF = multiEKF(ants, R_diag,  Q, dt, mh, P_limit, W, H, int(frame['frame']), None, None)
     else:
         MEKF.proceed(ants, dt, int(frame['frame']))
     #commit for no vis (2)
@@ -157,7 +157,7 @@ def proceed_frame_nv(frame, W, H, dt):
     global MEKF
     ants = get_ants(frame, dt) 
     if MEKF is None:
-        MEKF = multiEKF(ants, R_diag,  Q, dt, mh, P_limit, W, H, int(frame['frame']))
+        MEKF = multiEKF(ants, R_diag,  Q, dt, mh, P_limit, W, H, int(frame['frame']), None, None)
     else:
         MEKF.proceed(ants, dt, int(frame['frame']))
 
@@ -292,6 +292,8 @@ if __name__ == '__main__':
     parser.add_argument('--min_score', nargs='?', default=0.8, help="the minimum value to consider that it is an ant", type=float)
     #parser.add_argument('--tracks_save_path', nargs='?', default=f'/home/ubuntu/ant_detection/problems/another_full_video/{file_}_tracks.txt', help="Full path to directory to save trackes in yaml", type=str)
     parser.add_argument('--visualisation', nargs='?', default=True, help="Make visualization or file with tracks only", type=bool)
+    parser.add_argument('--check_status', nargs='?', default=False, help="if True, will draw only green and read tracks, else with enuque color", type=bool)
+    
     args = parser.parse_args()
     yaml_path = args.yaml_path
     video_path = args.video_path
@@ -301,6 +303,7 @@ if __name__ == '__main__':
     struct_start = time.localtime(sec_start)
     start_time = time.strftime('%d.%m.%Y %H:%M', struct_start)
     
+    print('*****************************ПОСТРОЕНИЕ ТРАЕКТОРИЙ****************************')
     name = video_path[video_path.rfind('/'):video_path.rfind('.')]
     tracks_save_path = video_path[:video_path.rfind('/')] + name + '_tracks' + '.txt'
     path_to_matrix = video_path[:video_path.rfind('/')] + name + "_matrix.yml"
@@ -310,7 +313,6 @@ if __name__ == '__main__':
     matrix = np.array(matrix, dtype=np.float32)
     inv_matrix = np.linalg.inv(matrix)
     
-    print("----------------Построение траекторий----------------")
     print(f"INFO: Loading data from {yaml_path}...")
     if yaml_path[-3:] == 'txt':
         ANT_DATA = read_txt(yaml_path)
@@ -366,7 +368,7 @@ if __name__ == '__main__':
             #    print('Frame:', count, '/', maxim_frames)
             printProgressBar(count, maxim_frames, prefix = 'Progress:', suffix = 'of frames processed', length = 50)
             ret, frame_v = cap.read()
-            pred_im = proceed_frame_cv2(frame, frame_v, w, h, dt, inv_matrix)
+            pred_im = proceed_frame_cv2(frame, frame_v, w, h, dt, inv_matrix, args.check_status)
             #cv2.imshow('image', frame_v)
             #cv2.waitKey(0)
             out.write(pred_im)
@@ -374,14 +376,15 @@ if __name__ == '__main__':
         cap.release()
     else:
         del cap
-        print("Начало обработки")
-        for frame in ANT_DATA['frames']:
+        for count, frame in enumerate(ANT_DATA['frames']):
             #ret, frame_v = cap.read()
+            printProgressBar(count, maxim_frames, prefix = 'Progress:', suffix = 'of frames processed', length = 50)
             proceed_frame_nv(frame, ANT_DATA['weight'], ANT_DATA['height'], dt)
      
     del ANT_DATA
     gc.collect()
-    print("Запись треков")
+    print('')
+    print("INFO: Запись треков")
     MEKF.write_tracks(tracks_save_path)
     
     # распределения ошибок
@@ -439,3 +442,4 @@ if __name__ == '__main__':
     finish_time = time.strftime('%d.%m.%Y %H:%M', struct_finish)
     
     print(f'Started {start_time} Finished {finish_time}')
+    print('**************************КОНЕЦ ПОСТРОЕНИЯ ТРАЕКТОРИЙ*************************')

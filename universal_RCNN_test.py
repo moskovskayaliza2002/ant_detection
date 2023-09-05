@@ -390,7 +390,6 @@ def full_video(filename, model, device, targets, conf_threshold, nms_threshold, 
     targets = False
     #Подготовка файла записи
     name = filename[filename.rfind('/'):filename.rfind('.')]
-    print(name)
     new_filename = filename[:filename.rfind('/')] + name + '_pred' + '.mp4'
     yml_filename = filename[:filename.rfind('/')] + name + '.yml'
     
@@ -544,11 +543,11 @@ if __name__ == '__main__':
     splits_horizontal = args.splits_horizontal
     
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    
+    print('*******************************ДЕТЕКТИРОВАНИЕ********************************')
     if torch.cuda.is_available():
-        print('*****************************DEVICE: GPU*****************************')
+        print('INFO: device - GPU')
     else:
-        print('*****************************DEVICE: CPU*****************************')
+        print('INFO: device - CPU')
         
     
     sec_start = time.time()
@@ -558,11 +557,11 @@ if __name__ == '__main__':
     test_model = get_model(2, model_path)
     
     if test_data_path[-3:] == 'png' or test_data_path[-3:] == 'jpg':
-        print('*********Обработка единственного изображения*********')
+        print('INFO: Обработка единственного изображения')
         one_image_test(test_data_path, test_model, device, draw_targets, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h, splits_vertical, splits_horizontal)
     elif test_data_path[-3:] == 'mp4' or test_data_path[-3:] == 'MOV':
         draw_targets = False
-        print('*********Обработка видеофайла*********')
+        print('INFO: Обработка видеофайла')
         full_video(test_data_path, test_model, device, draw_targets, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h, splits_vertical, splits_horizontal)
     else:
         batch_test(test_data_path, test_model, device, draw_targets, conf_threshold, nms_threshold, iou_threshold, overlay_w, overlay_h, splits_vertical, splits_horizontal)
@@ -572,3 +571,4 @@ if __name__ == '__main__':
     finish_time = time.strftime('%d.%m.%Y %H:%M', struct_finish)
     
     print(f'Started {start_time} Finished {finish_time}')
+    print('*****************************КОНЕЦ ДЕТЕКТИРОВАНИЯ*****************************')
