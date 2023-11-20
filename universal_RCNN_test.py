@@ -530,7 +530,6 @@ if __name__ == '__main__':
     parser.add_argument('--splits_horizontal', nargs='?', default=2, help="Num of pictures in h-axis", type=int)
     args = parser.parse_args()
     
-    args = parser.parse_args()
     test_data_path = args.test_data_path
     model_path = args.model_path
     draw_targets = args.draw_targets

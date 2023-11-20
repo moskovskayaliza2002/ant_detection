@@ -1,5 +1,5 @@
 import random
-from universal_intersection import read_boxes, write_bbox, find_bbox, find_kp, resize_bboxes_kps
+from universal_intersection import read_boxes, write_bbox, find_bbox, find_kp, visualize, conv_x, conv_y
 import os
 import cv2
 import shutil
@@ -16,6 +16,49 @@ class Sizes:
     Max_new_w = 200 # bc 1920 // 4 = 480
     Max_new_h = 100 # bc 1080 // 4 = 270
     
+    
+def resize_bboxes_kps(bboxes, kps, left_x, left_y, right_x, right_y):
+    # Изменяет размеры боксов
+    new_list_bboxes = []
+    new_list_kps = []
+    k = 0
+    flag = True
+    #neg = 0
+    nouse_ant = 0
+    for i in range(len(bboxes)):
+        # [xmin, ymin, xmax, ymax]
+        ymin, xmin, ymax, xmax = bboxes[i][1], bboxes[i][0], bboxes[i][3], bboxes[i][2]
+        
+        # проверка на то, что границы не пересекают муравья
+        if ((ymin < left_y < ymax or ymin < right_y < ymax) and (xmax > left_x and xmin < right_x)) or ((xmin < left_x < xmax or xmin < right_x < xmax) and (ymax > left_y and ymin < right_y)):
+            flag = False
+            nouse_ant += 1
+        else:
+            flag = True
+        #if (xmin < left_x < xmax or xmin < right_x < xmax) and (ymax > left_y and ymin < right_y): #left_y < ymin < right_y:
+        #    flag = False
+        # проверка на то, что это не бокс за границей обрезанной области
+        if flag == True and not(xmax <= left_x or ymax <= left_y or ymin >= right_y or xmin >= right_x):
+            #new_list_bboxes.append([xmin - left_x, ymin - left_y, xmax - left_x, ymax - left_y])
+            #resize to 224 224
+            x_f = conv_x(xmin, left_x, 0, right_x, 640)
+            y_f = conv_y(ymin, left_y, 0, right_y, 640)
+            x_s = conv_x(xmax, left_x, 0, right_x, 640)
+            y_s = conv_y(ymax, left_y, 0, right_y, 640)
+            new_list_bboxes.append([x_f, y_f, x_s, y_s])
+            l = [x_f, y_f, x_s, y_s]
+            #neg += sum([num for num in l if num < 0])
+            x_a = conv_x(kps[i][0], left_x, 0, right_x, 640)
+            y_a = conv_y(kps[i][1], left_y, 0, right_y, 640)
+            x_h = conv_x(kps[i][2], left_x, 0, right_x, 640)
+            y_h = conv_y(kps[i][3], left_y, 0, right_y, 640)
+            new_list_kps.append([x_a, y_a, x_h, y_h])
+            #new_list_kps.append([x_a - left_x, y_a - left_y, x_h - left_x, y_h - left_y])
+            k += 1
+    #print(f"Negative numbers {neg}")
+    return k, nouse_ant, new_list_bboxes, new_list_kps
+
+
 def crop_image(image):
     
     x_start = random.randint(0, Sizes.Width_orig - Sizes.Max_new_w)
@@ -25,7 +68,7 @@ def crop_image(image):
     new_h = random.randint(Sizes.Min_new_h, Sizes.Max_new_h)
     
     crop = image[y_start : y_start + new_h, x_start : x_start + new_w]
-    crop = cv2.resize(crop, (224, 224), interpolation = cv2.INTER_AREA)
+    crop = cv2.resize(crop, (640, 640), interpolation = cv2.INTER_AREA)
     
     return crop, x_start, y_start, x_start + new_w, y_start + new_h
 
@@ -50,8 +93,8 @@ def vis_check(im, bboxes, keypoints):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('new_root_path', nargs='?', default="/home/ubuntu/ant_detection/new_dataset/augmentation", help="Specify the path to the folder to create new data", type=str)
-    parser.add_argument('old_root_path', nargs='?', default="/home/ubuntu/ant_detection/real_im_annot", help="Specify the path to the folder to original data", type=str)
+    parser.add_argument('--new_root_path', nargs='?', default="/home/ubuntu/ant_detection/new_dataset/augmentation", help="Specify the path to the folder to create new data", type=str)
+    parser.add_argument('--old_root_path', nargs='?', default="/home/ubuntu/ant_detection/real_im_annot", help="Specify the path to the folder to original data", type=str)
     args = parser.parse_args()
     new_root_path = args.new_root_path
     old_root_path = args.old_root_path
@@ -68,7 +111,7 @@ if __name__ == '__main__':
             os.mkdir(i) 
     
     #c count + 1 начнется нумерация
-    counter = 1205
+    counter = 0
     for f in os.scandir(old_root_path + '/images'):
         if f.is_file() and f.path.split('.')[-1].lower() == 'png':
             original_image = cv2.imread(f.path)
@@ -80,14 +123,13 @@ if __name__ == '__main__':
             for i in range(70):
                 cr_im, left_x, left_y, right_x, right_y = crop_image(original_image)
                 ants_counter, noise_counter, new_bb, new_kp = resize_bboxes_kps(original_bboxs, original_keypoints, left_x, left_y, right_x, right_y)
-                print("идет процесс")
                 if ants_counter != 0 and noise_counter == 0:
                     cv2.imwrite(new_images_path + '/image' + str(counter + 1) + '.png', cr_im)
                     write_bbox(new_bb, new_bboxes_path + '/bbox' + str(counter + 1) + '.txt')
                     write_bbox(new_kp, new_keypoints_path + '/keypoint' + str(counter + 1) + '.txt')
                     counter += 1
                     
-    test_image = cv2.imread('/home/ubuntu/ant_detection/new_dataset/augmentation/images/image1208.png')
-    test_bb = read_boxes('/home/ubuntu/ant_detection/new_dataset/augmentation/bboxes/bbox1208.txt')
-    test_kp, _ = find_kp(1208, '/home/ubuntu/ant_detection/new_dataset/augmentation')
-    visualize(test_image, test_bb, test_kp)
+    #test_image = cv2.imread('/windows/d/ant_detection/compute_files/data/aug/images/image88.png')
+    #test_bb = read_boxes('/windows/d/ant_detection/compute_files/data/aug/bboxes/bbox88.txt')
+    #test_kp, _ = find_kp(88, '/windows/d/ant_detection/compute_files/data/aug')
+    #visualize(test_image, test_bb, test_kp)
