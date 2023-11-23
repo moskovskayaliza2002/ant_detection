@@ -131,3 +131,4 @@ dmypy.json
 test_data/
 train_data/
 rcnn_models/
+qt_designer/images/
