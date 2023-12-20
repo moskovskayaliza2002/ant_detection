@@ -44,7 +44,7 @@ def find_kp(num, root_path):
 def conv_x(old):
     # Переводит координату х в новую систему координат
     old_min = new_min = 0
-    old_range = 1920 - 0 #640 - 0
+    old_range = 640 - 0
     new_range = 1 - 0
     
     converted = (((old - old_min) * new_range) / old_range) + new_min
@@ -54,7 +54,7 @@ def conv_x(old):
 def conv_y(old):
     # Переводит координату у в новую систему координат
     old_min = new_min = 0
-    old_range = 1080 - 0 #640 - 0
+    old_range = 640 - 0
     new_range = 1 - 0
     
     converted = (((old - old_min) * new_range) / old_range) + new_min
@@ -164,7 +164,7 @@ if __name__ == '__main__':
                 os.mkdir(f)
     
     counter = create(args.dataset_path + '/train', args.yolo_dataset_path + '/images/train', args.yolo_dataset_path + '/labels/train')
-    counter = create(args.dataset_path + '/test', args.yolo_dataset_path + '/images/val', args.yolo_dataset_path + '/labels/val', counter)
+    #counter = create(args.dataset_path + '/test', args.yolo_dataset_path + '/images/val', args.yolo_dataset_path + '/labels/val', counter)
             
 # перебрать все изображения в папке
 # для каждого из них считать боксы и точки

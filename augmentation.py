@@ -111,7 +111,7 @@ if __name__ == '__main__':
             os.mkdir(i) 
     
     #c count + 1 начнется нумерация
-    counter = 0
+    counter = 1182
     for f in os.scandir(old_root_path + '/images'):
         if f.is_file() and f.path.split('.')[-1].lower() == 'png':
             original_image = cv2.imread(f.path)
