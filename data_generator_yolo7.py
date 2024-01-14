@@ -44,8 +44,8 @@ def find_kp(num, root_path):
 def conv_x(old):
     # Переводит координату х в новую систему координат
     old_min = new_min = 0
-    old_range = 1920 - 0
-    new_range = 1 - 0 #
+    old_range = 640 - 0
+    new_range = 1 - 0
     
     converted = (((old - old_min) * new_range) / old_range) + new_min
     return converted
@@ -54,16 +54,15 @@ def conv_x(old):
 def conv_y(old):
     # Переводит координату у в новую систему координат
     old_min = new_min = 0
-    old_range = 1080 - 0 
+    old_range = 640 - 0
     new_range = 1 - 0
     
     converted = (((old - old_min) * new_range) / old_range) + new_min
     return converted
 
 
-def create(dataset_path, yolo_images, yolo_labels):
+def create(dataset_path, yolo_images, yolo_labels, counter = 1):
     image_path = dataset_path + "/images"
-    counter = 1
     for f in os.scandir(image_path):
         if f.is_file() and f.path.split('.')[-1].lower() == 'png':
             filename = f.path[f.path.rfind('/')+1:]
@@ -72,24 +71,23 @@ def create(dataset_path, yolo_images, yolo_labels):
             h, w, _ = original_image.shape
             original_bboxs = find_bbox(int(number), dataset_path)
             _, original_keypoints = find_kp(int(number), dataset_path)
+            #resized = cv2.resize(original_image, (640,640), interpolation = cv2.INTER_AREA)
             cv2.imwrite(yolo_images + '/' + str(counter) + '.png', original_image)
             convert_to_str(original_bboxs, original_keypoints, yolo_labels + '/' + str(counter) + '.txt')
             counter += 1
+    return counter
             
             
 def convert_to_str(bbs, kps, filename):
     str_list = []
     for i in range(len(bbs)):
         full_str = '0 '
-        print(f"orig bb {bbs[i]}")
         xmin, ymin, xmax, ymax = conv_x(bbs[i][0]), conv_y(bbs[i][1]), conv_x(bbs[i][2]), conv_y(bbs[i][3])
-        print(f"conv bb {(xmin, ymin, xmax, ymax)}")
         x_a, y_a, x_h, y_h = conv_x(kps[i][0]), conv_y(kps[i][1]), conv_x(kps[i][2]), conv_y(kps[i][3])
         x_center = (xmin + xmax) / 2
         y_center = (ymin + ymax) / 2
         width = xmax - xmin
         height = ymax - ymin
-        print(f"annot {(x_center, y_center, width, height)}")
         str_bbox = str(x_center) + ' ' + str(y_center) + ' ' + str(width) + ' ' + str(height)
         str_kps = str(x_a) + ' ' + str(y_a) + ' ' + str(2) + ' ' + str(x_h) + ' ' + str(y_h) + ' ' + str(2)
         full_str += str_bbox + ' '
@@ -119,15 +117,54 @@ def chech_convert(orig_bb, pred_bb, orig_kps, pred_kps):
     
     print(f"Сконвертированные точки: {[x_a, y_a, x_h, y_h]}")
     
+
+def split_data(data_path, train_fraction):
+    train_im_path = data_path + '/train/images'
+    train_b_path = data_path + '/train/bboxes'
+    train_kp_path = data_path + '/train/keypoints'
+    
+    test_im_path = data_path + '/test/images'
+    test_b_path = data_path + '/test/bboxes'
+    test_kp_path = data_path + '/test/keypoints'
+    
+    for f, i in enumerate([data_path + '/train', data_path + '/test', train_im_path, train_b_path, train_kp_path, test_im_path, test_b_path, test_kp_path]):
+        if not os.path.exists(f):
+            os.mkdir(f)
+        else:
+            if i != 0 and i != 1:
+                shutil.rmtree(f)
+                os.mkdir(f)
+    
+    dir_size = len(glob.glob(data_path + "/images" + '/*'))
+    train_num = int(dir_size * train_fraction)
+    for i in range(1, dir_size + 1):
+        if i <= train_num:
+            shutil.copyfile(data_path + "/images/image" + str(i) + ".png", train_im_path + "/image" + str(i) + ".png")
+            shutil.copyfile(data_path + "/keypoints/keypoint" + str(i) + ".txt", train_kp_path + "/keypoint" + str(i) + ".txt")
+            shutil.copyfile(data_path + "/bboxes/bbox" + str(i) + ".txt", train_b_path + "/bbox" + str(i) + ".txt")
+        else:
+            shutil.copyfile(data_path + "/images/image" + str(i) + ".png", test_im_path + "/image" + str(i) + ".png")
+            shutil.copyfile(data_path + "/keypoints/keypoint" + str(i) + ".txt", test_kp_path + "/keypoint" + str(i) + ".txt")
+            shutil.copyfile(data_path + "/bboxes/bbox" + str(i) + ".txt", test_b_path + "/bbox" + str(i) + ".txt")
+    
         
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_path', nargs='?', default='/home/ubuntu/ant_detection/new_dataset', help="Specify the full path to dataset to convert to yolo type", type=str)
-    parser.add_argument('--yolo_dataset_path', nargs='?', default='/home/ubuntu/ant_detection/yolo_aug', help="Specify the full path to directory to store ", type=str)
-    args = parser.parse_args()
+    parser.add_argument('--dataset_path', nargs='?', default='/windows/d/ant_detection/natural_substrate', help="Specify the full path to dataset to convert to yolo type", type=str)
+    parser.add_argument('--yolo_dataset_path', nargs='?', default='/home/ubuntu/yolo8/yolov8_detection/data/natural_sub', help="Specify the full path to directory to store ", type=str)
     
-    create(args.dataset_path + '/train', args.yolo_dataset_path + '/images/train', args.yolo_dataset_path + '/labels/train')
-    create(args.dataset_path + '/test', args.yolo_dataset_path + '/images/val', args.yolo_dataset_path + '/labels/val')
+    args = parser.parse_args()
+    yolo_dataset_path = args.yolo_dataset_path
+    for i, f in enumerate([yolo_dataset_path + '/labels', yolo_dataset_path + '/images', yolo_dataset_path + '/labels/train', yolo_dataset_path + '/labels/val', yolo_dataset_path + '/images/train', yolo_dataset_path + '/images/val']):
+        if not os.path.exists(f):
+            os.mkdir(f)
+        else:
+            if i != 0 and i != 1:
+                shutil.rmtree(f)
+                os.mkdir(f)
+    
+    counter = create(args.dataset_path + '/train', args.yolo_dataset_path + '/images/train', args.yolo_dataset_path + '/labels/train')
+    #counter = create(args.dataset_path + '/test', args.yolo_dataset_path + '/images/val', args.yolo_dataset_path + '/labels/val', counter)
             
 # перебрать все изображения в папке
 # для каждого из них считать боксы и точки
