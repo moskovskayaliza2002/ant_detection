@@ -8,6 +8,7 @@ from universal_RCNN_test import one_image_test
 import torch
 import matplotlib.pyplot as plt
 
+# ================================================= EDUCATIONAL VERSION  ================================================= 
 
 def intersection_over_union(boxA, boxB):
     #Считает IoU для двух боксов

@@ -14,6 +14,7 @@ import argparse
 import time
 import gc
 
+# ================================================= EDUCATIONAL VERSION  ================================================= 
 ### firstly set max_split_size_mb
 # export PYTORCH_CUDA_ALLOC_CONF=garbage_collection_threshold:0.6,max_split_size_mb:128
 

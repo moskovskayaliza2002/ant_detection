@@ -6,6 +6,9 @@ import math
 import matplotlib.pyplot as plt
 import openpyxl 
 from openpyxl.styles import PatternFill
+
+# ================================================= EDUCATIONAL VERSION  ================================================= 
+
 #https://www.codespeedy.com/how-to-add-color-to-excel-cells-using-python/ 
 # для того чтобы цвета ячеек эксель менять
 def add_colors(colors, track_path):

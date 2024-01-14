@@ -6,7 +6,7 @@ import shutil
 import argparse
 import time
 
-
+# ================================================= EDUCATIONAL VERSION  ================================================= 
 def write_txt(list_of_lists, filename):
     # Записывает лист в txt файл
     str_list = []

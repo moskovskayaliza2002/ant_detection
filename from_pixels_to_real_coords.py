@@ -9,6 +9,8 @@ from universal_RCNN_test import read_yaml
 import os
 #moskovskaya_ed@rrcki.ru
 
+# ================================================= EDUCATIONAL VERSION  ================================================= 
+
 def read_txt(path):
     data = []
     name, fps, weight, height = 0, 0, 0, 0

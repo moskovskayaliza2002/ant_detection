@@ -5,6 +5,8 @@ import cv2
 import shutil
 import argparse
 
+# ================================================= EDUCATIONAL VERSION  ================================================= 
+
 class Sizes:
     
     Width_orig = 1920

@@ -6,6 +6,7 @@ import cv2
 import re
 import copy
 
+# ================================================= EDUCATIONAL VERSION  ================================================= 
 
 def read_tracks_from_txt(path):
     tracks = []

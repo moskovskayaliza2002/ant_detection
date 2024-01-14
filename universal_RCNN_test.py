@@ -13,6 +13,8 @@ import yaml
 import time
 from collections import OrderedDict
 
+# ================================================= EDUCATIONAL VERSION  ================================================= 
+
 def get_out_kp_bb(out, left_x, left_y, conf_threshold, iou_threshold):
     # Функция для маштабирования предказанных координат на новый диапазон
     scores = out[0]['scores'].detach().cpu().numpy()

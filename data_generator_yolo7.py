@@ -4,6 +4,8 @@ import argparse
 import os
 import shutil
 
+# ================================================= EDUCATIONAL VERSION  ================================================= 
+
 def read_boxes(bbox_path):
     # Считывает боксы
     bboxes_original = []
