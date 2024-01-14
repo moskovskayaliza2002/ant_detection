@@ -44,7 +44,7 @@ def find_kp(num, root_path):
 def conv_x(old):
     # Переводит координату х в новую систему координат
     old_min = new_min = 0
-    old_range = 224 - 0 #1920 - 0
+    old_range = 1920 - 0
     new_range = 1 - 0 #
     
     converted = (((old - old_min) * new_range) / old_range) + new_min
@@ -54,7 +54,7 @@ def conv_x(old):
 def conv_y(old):
     # Переводит координату у в новую систему координат
     old_min = new_min = 0
-    old_range = 224 - 0 # 1080 - 0 
+    old_range = 1080 - 0 
     new_range = 1 - 0
     
     converted = (((old - old_min) * new_range) / old_range) + new_min
@@ -63,7 +63,7 @@ def conv_y(old):
 
 def create(dataset_path, yolo_images, yolo_labels):
     image_path = dataset_path + "/images"
-    counter = 481
+    counter = 1
     for f in os.scandir(image_path):
         if f.is_file() and f.path.split('.')[-1].lower() == 'png':
             filename = f.path[f.path.rfind('/')+1:]
@@ -81,12 +81,15 @@ def convert_to_str(bbs, kps, filename):
     str_list = []
     for i in range(len(bbs)):
         full_str = '0 '
+        print(f"orig bb {bbs[i]}")
         xmin, ymin, xmax, ymax = conv_x(bbs[i][0]), conv_y(bbs[i][1]), conv_x(bbs[i][2]), conv_y(bbs[i][3])
+        print(f"conv bb {(xmin, ymin, xmax, ymax)}")
         x_a, y_a, x_h, y_h = conv_x(kps[i][0]), conv_y(kps[i][1]), conv_x(kps[i][2]), conv_y(kps[i][3])
         x_center = (xmin + xmax) / 2
         y_center = (ymin + ymax) / 2
         width = xmax - xmin
         height = ymax - ymin
+        print(f"annot {(x_center, y_center, width, height)}")
         str_bbox = str(x_center) + ' ' + str(y_center) + ' ' + str(width) + ' ' + str(height)
         str_kps = str(x_a) + ' ' + str(y_a) + ' ' + str(2) + ' ' + str(x_h) + ' ' + str(y_h) + ' ' + str(2)
         full_str += str_bbox + ' '
@@ -123,9 +126,8 @@ if __name__ == '__main__':
     parser.add_argument('--yolo_dataset_path', nargs='?', default='/home/ubuntu/ant_detection/yolo_aug', help="Specify the full path to directory to store ", type=str)
     args = parser.parse_args()
     
-    #create(args.dataset_path + '/Train_data_not_cropped', args.yolo_dataset_path + '/images/train', args.yolo_dataset_path + '/labels/train')
-    create(args.dataset_path + '/Train_data_with_aug/augmentation', args.yolo_dataset_path + '/images/train', args.yolo_dataset_path + '/labels/train')
-    #create(args.dataset_path + '/Test_data_not_cropped', args.yolo_dataset_path + '/images/val', args.yolo_dataset_path + '/labels/val')
+    create(args.dataset_path + '/train', args.yolo_dataset_path + '/images/train', args.yolo_dataset_path + '/labels/train')
+    create(args.dataset_path + '/test', args.yolo_dataset_path + '/images/val', args.yolo_dataset_path + '/labels/val')
             
 # перебрать все изображения в папке
 # для каждого из них считать боксы и точки
