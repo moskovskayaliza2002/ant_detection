@@ -367,7 +367,7 @@ if __name__ == '__main__':
     saving_grafic_path = args.input_video_path[:args.input_video_path.rfind('/')+1] + 'dynamic_density.png'
     args = parser.parse_args()
     name = args.input_video_path[args.input_video_path.rfind('/')+1:args.input_video_path.rfind('.')]
-    matrix_path = args.input_video_path[:args.input_video_path.rfind('/')] + '/' + name + '_real_coords_matrix.yml'
+    matrix_path = args.input_video_path[:args.input_video_path.rfind('/')] + '/' + name + '_matrix.yml'
     #path = '/home/ubuntu/ant_detection/dynamic_density/'
     draw_graficks(count_all_minutas(args.coord_yaml, matrix_path, args.tracks_path, args.input_video_path), args.csv_path, name, saving_grafic_path)
     
